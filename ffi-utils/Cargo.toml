@@ -1,0 +1,13 @@
+[package]
+name = "ffi-utils"
+version = "0.1.0"
+authors = [
+    "Thibaut Lorrain <thibaut.lorrain@snips.ai>",
+    "Kevin Lefevre <kevin.lefevre@snips.ai>",
+]
+
+[dependencies]
+failure = "0.1"
+failure-utils = { path = "../failure-utils" }
+lazy_static = "1.0"
+libc = "0.2"
