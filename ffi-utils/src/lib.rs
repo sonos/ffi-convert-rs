@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate failure;
 extern crate failure_utils;
-extern crate lazy_static;
 extern crate libc;
 
 #[macro_use]

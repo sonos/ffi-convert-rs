@@ -9,5 +9,4 @@ authors = [
 [dependencies]
 failure = "0.1"
 failure-utils = { path = "../failure-utils" }
-lazy_static = "1.0"
 libc = "0.2"
