@@ -1,7 +1,7 @@
 use std::ffi::CString;
 
-use libc;
 use failure::{Error, ResultExt};
+use libc;
 
 use conversions::*;
 
@@ -71,4 +71,3 @@ impl Drop for CStringArray {
         };
     }
 }
-

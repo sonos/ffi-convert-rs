@@ -6,20 +6,25 @@ macro_rules! generate_error_handling {
             static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
         }
 
-        fn _get_last_error(error: *mut *const libc::c_char) -> ::std::result::Result<(), ::failure::Error> {
+        fn _get_last_error(
+            error: *mut *const libc::c_char,
+        ) -> ::std::result::Result<(), ::failure::Error> {
             LAST_ERROR.with(|msg| {
-                let string = msg.borrow_mut().take().unwrap_or_else(||
-                    "No error message".to_string()
-                );
+                let string = msg
+                    .borrow_mut()
+                    .take()
+                    .unwrap_or_else(|| "No error message".to_string());
                 $crate::point_to_string(error, string)
             })
         }
 
         #[no_mangle]
-        pub extern "C" fn $get_error_symbol(error: *mut *const ::libc::c_char) -> $crate::SNIPS_RESULT {
+        pub extern "C" fn $get_error_symbol(
+            error: *mut *const ::libc::c_char,
+        ) -> $crate::SNIPS_RESULT {
             wrap!(_get_last_error(error))
         }
-    }
+    };
 }
 
 #[macro_export]
@@ -33,7 +38,7 @@ macro_rules! wrap {
                 if ::std::env::var("SNIPS_ERROR_STDERR").is_ok() {
                     eprintln!("{}", msg);
                 }
-                LAST_ERROR.with(|p| { *p.borrow_mut() = Some(msg) } );
+                LAST_ERROR.with(|p| *p.borrow_mut() = Some(msg));
                 $crate::SNIPS_RESULT::SNIPS_RESULT_KO
             }
         }

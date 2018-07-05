@@ -1,5 +1,5 @@
-use libc;
 use failure::{Error, ResultExt};
+use libc;
 
 #[macro_export]
 macro_rules! convert_to_c_string {
@@ -231,4 +231,3 @@ impl AsRust<String> for ::std::ffi::CStr {
         self.to_str().map(|s| s.to_owned()).map_err(|e| e.into())
     }
 }
-
