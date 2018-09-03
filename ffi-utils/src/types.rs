@@ -5,18 +5,24 @@ use libc;
 
 use conversions::*;
 
+/// Used as a return type of functions that can encounter errors
 #[repr(C)]
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
 pub enum SNIPS_RESULT {
+    /// The function returned successfully
     SNIPS_RESULT_OK = 0,
+    /// The function encountered an error, you can retrieve it using the dedicated function
     SNIPS_RESULT_KO = 1,
 }
 
+/// An array of strings
 #[repr(C)]
 #[derive(Debug)]
 pub struct CStringArray {
+    /// Pointer to the first element of the array
     pub data: *const *const libc::c_char,
+    /// Number of elements in the array
     // Note: we can't use `libc::size_t` because it's not supported by JNA
     pub size: libc::c_int,
 }

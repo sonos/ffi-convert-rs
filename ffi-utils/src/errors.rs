@@ -18,6 +18,8 @@ macro_rules! generate_error_handling {
             })
         }
 
+        /// Used to retrieve the last error that happened in this thread. A function encountered an
+        /// error if its return type is of type SNIPS_RESULT and it returned SNIPS_RESULT_KO
         #[no_mangle]
         pub extern "C" fn $get_error_symbol(
             error: *mut *const ::libc::c_char,
