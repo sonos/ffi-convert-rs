@@ -157,6 +157,12 @@ pub trait RawBorrow<T> {
     unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, Error>;
 }
 
+pub trait RawBorrowMut<T> {
+    unsafe fn raw_borrow_mut<'a>(input: *mut T) -> Result<&'a mut Self, Error>;
+}
+
+
+
 /// TODO custom derive instead of generic impl, this would prevent CString from having 2 impls...
 impl<T> RawPointerConverter<T> for T {
     fn into_raw_pointer(self) -> *const T {
@@ -176,6 +182,14 @@ impl<T> RawBorrow<T> for T {
     unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, Error> {
         input
             .as_ref()
+            .ok_or_else(|| format_err!("could not borrow, unexpected null pointer"))
+    }
+}
+
+impl<T> RawBorrowMut<T> for T {
+    unsafe fn raw_borrow_mut<'a>(input: *mut T) -> Result<&'a mut Self, Error> {
+        input
+            .as_mut()
             .ok_or_else(|| format_err!("could not borrow, unexpected null pointer"))
     }
 }
