@@ -3,7 +3,7 @@ use failure::{ensure, format_err, Error, ResultExt};
 #[macro_export]
 macro_rules! convert_to_c_string {
     ($string:expr) => {
-        convert_to_c_string_result!($string)?
+        $crate::convert_to_c_string_result!($string)?
     };
 }
 
@@ -25,7 +25,7 @@ macro_rules! convert_to_c_string_array {
 macro_rules! convert_to_nullable_c_string_array {
     ($opt:expr) => {
         if let Some(s) = $opt {
-            convert_to_c_string_array!(s)
+            $crate::convert_to_c_string_array!(s)
         } else {
             null()
         }
@@ -36,7 +36,7 @@ macro_rules! convert_to_nullable_c_string_array {
 macro_rules! convert_to_nullable_c_string {
     ($opt:expr) => {
         if let Some(s) = $opt {
-            convert_to_c_string!(s)
+            $crate::convert_to_c_string!(s)
         } else {
             null()
         }
@@ -54,7 +54,7 @@ macro_rules! take_back_c_string {
 macro_rules! take_back_nullable_c_string {
     ($pointer:expr) => {
         if !$pointer.is_null() {
-            take_back_c_string!($pointer)
+            $crate::take_back_c_string!($pointer)
         }
     };
 }
@@ -70,7 +70,7 @@ macro_rules! take_back_c_string_array {
 macro_rules! take_back_nullable_c_string_array {
     ($pointer:expr) => {
         if !$pointer.is_null() {
-            take_back_c_string_array!($pointer)
+            $crate::take_back_c_string_array!($pointer)
         }
     };
 }
@@ -90,7 +90,7 @@ macro_rules! create_rust_string_from {
 macro_rules! create_optional_rust_string_from {
     ($pointer:expr) => {
         match unsafe { $pointer.as_ref() } {
-            Some(thing) => Some(create_rust_string_from!(thing)),
+            Some(thing) => Some($crate::create_rust_string_from!(thing)),
             None => None,
         }
     };
@@ -107,7 +107,7 @@ macro_rules! create_rust_vec_string_from {
 macro_rules! create_optional_rust_vec_string_from {
     ($pointer:expr) => {
         match unsafe { $pointer.as_ref() } {
-            Some(thing) => Some(create_rust_vec_string_from!(thing)),
+            Some(thing) => Some($crate::create_rust_vec_string_from!(thing)),
             None => None,
         }
     };
