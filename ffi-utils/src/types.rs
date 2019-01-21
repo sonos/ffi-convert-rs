@@ -3,8 +3,8 @@ use std::ffi::CString;
 use failure::{Error, ResultExt};
 
 use crate::conversions::*;
-use crate::create_rust_string_from;
 use crate::convert_to_c_string_result;
+use crate::create_rust_string_from;
 
 /// Used as a return type of functions that can encounter errors
 #[repr(C)]
@@ -35,10 +35,7 @@ impl AsRust<Vec<String>> for CStringArray {
         let mut result = vec![];
 
         let strings = unsafe {
-            std::slice::from_raw_parts_mut(
-                self.data as *mut *mut libc::c_char,
-                self.size as usize,
-            )
+            std::slice::from_raw_parts_mut(self.data as *mut *mut libc::c_char, self.size as usize)
         };
 
         for s in strings {

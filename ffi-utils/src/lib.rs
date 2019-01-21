@@ -1,5 +1,5 @@
-mod errors;
 mod conversions;
+mod errors;
 mod types;
 
 pub use conversions::*;

@@ -10,8 +10,7 @@ macro_rules! convert_to_c_string {
 #[macro_export]
 macro_rules! convert_to_c_string_result {
     ($string:expr) => {
-        std::ffi::CString::c_repr_of($string)
-            .map(|s| s.into_raw_pointer() as *const libc::c_char)
+        std::ffi::CString::c_repr_of($string).map(|s| s.into_raw_pointer() as *const libc::c_char)
     };
 }
 
@@ -159,8 +158,6 @@ pub trait RawBorrow<T> {
 pub trait RawBorrowMut<T> {
     unsafe fn raw_borrow_mut<'a>(input: *mut T) -> Result<&'a mut Self, Error>;
 }
-
-
 
 /// TODO custom derive instead of generic impl, this would prevent CString from having 2 impls...
 impl<T> RawPointerConverter<T> for T {
