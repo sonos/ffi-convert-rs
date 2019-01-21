@@ -1,6 +1,0 @@
-[package]
-name = "misc-utils"
-version = "0.0.1"
-authors = ["Kevin Lefevre <kevin.lefevre@snips.ai>"]
-
-[dependencies]

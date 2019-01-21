@@ -2,6 +2,7 @@
 name = "failure-utils"
 version = "0.0.1"
 authors = ["Kevin Lefevre <kevin.lefevre@snips.ai>"]
+edition = "2018"
 
 [dependencies]
 failure = "0.1"
