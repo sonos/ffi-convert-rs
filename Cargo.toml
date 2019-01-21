@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "failure-utils",
+    "ffi-utils",
+]
