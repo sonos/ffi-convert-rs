@@ -24,7 +24,7 @@ macro_rules! generate_error_handling {
         pub extern "C" fn $get_error_symbol(
             error: *mut *const ::libc::c_char,
         ) -> $crate::SNIPS_RESULT {
-            wrap!(_get_last_error(error))
+            $crate::wrap!(_get_last_error(error))
         }
     };
 }
