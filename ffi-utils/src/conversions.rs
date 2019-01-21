@@ -1,5 +1,4 @@
-use failure::{Error, ResultExt};
-use libc;
+use failure::{ensure, format_err, Error, ResultExt};
 
 #[macro_export]
 macro_rules! convert_to_c_string {
@@ -11,7 +10,7 @@ macro_rules! convert_to_c_string {
 #[macro_export]
 macro_rules! convert_to_c_string_result {
     ($string:expr) => {
-        ::std::ffi::CString::c_repr_of($string)
+        std::ffi::CString::c_repr_of($string)
             .map(|s| s.into_raw_pointer() as *const libc::c_char)
     };
 }
@@ -48,7 +47,7 @@ macro_rules! convert_to_nullable_c_string {
 #[macro_export]
 macro_rules! take_back_c_string {
     ($pointer:expr) => {{
-        let _ = unsafe { ::std::ffi::CString::from_raw_pointer($pointer) };
+        let _ = unsafe { std::ffi::CString::from_raw_pointer($pointer) };
     }};
 }
 
@@ -81,7 +80,7 @@ macro_rules! take_back_nullable_c_string_array {
 macro_rules! create_rust_string_from {
     ($pointer:expr) => {{
         use $crate::RawBorrow;
-        unsafe { ::std::ffi::CStr::raw_borrow($pointer) }?
+        unsafe { std::ffi::CStr::raw_borrow($pointer) }?
             .to_str()
             .context("Could not convert pointer to rust str")?
             .to_owned()
@@ -116,7 +115,7 @@ macro_rules! create_optional_rust_vec_string_from {
 }
 
 pub fn point_to_string(pointer: *mut *const libc::c_char, string: String) -> Result<(), Error> {
-    unsafe { *pointer = ::std::ffi::CString::c_repr_of(string)?.into_raw_pointer() }
+    unsafe { *pointer = std::ffi::CString::c_repr_of(string)?.into_raw_pointer() }
     Ok(())
 }
 
@@ -194,7 +193,7 @@ impl<T> RawBorrowMut<T> for T {
     }
 }
 
-impl RawPointerConverter<libc::c_void> for ::std::ffi::CString {
+impl RawPointerConverter<libc::c_void> for std::ffi::CString {
     fn into_raw_pointer(self) -> *const libc::c_void {
         self.into_raw() as _
     }
@@ -204,11 +203,11 @@ impl RawPointerConverter<libc::c_void> for ::std::ffi::CString {
             !input.is_null(),
             "could not take raw pointer, unexpected null pointer"
         );
-        Ok(::std::ffi::CString::from_raw(input as *mut libc::c_char))
+        Ok(std::ffi::CString::from_raw(input as *mut libc::c_char))
     }
 }
 
-impl RawPointerConverter<libc::c_char> for ::std::ffi::CString {
+impl RawPointerConverter<libc::c_char> for std::ffi::CString {
     fn into_raw_pointer(self) -> *const libc::c_char {
         self.into_raw() as _
     }
@@ -218,11 +217,11 @@ impl RawPointerConverter<libc::c_char> for ::std::ffi::CString {
             !input.is_null(),
             "could not take raw pointer, unexpected null pointer"
         );
-        Ok(::std::ffi::CString::from_raw(input as *mut libc::c_char))
+        Ok(std::ffi::CString::from_raw(input as *mut libc::c_char))
     }
 }
 
-impl RawBorrow<libc::c_char> for ::std::ffi::CStr {
+impl RawBorrow<libc::c_char> for std::ffi::CStr {
     unsafe fn raw_borrow<'a>(input: *const libc::c_char) -> Result<&'a Self, Error> {
         ensure!(
             !input.is_null(),
@@ -232,15 +231,15 @@ impl RawBorrow<libc::c_char> for ::std::ffi::CStr {
     }
 }
 
-impl CReprOf<String> for ::std::ffi::CString {
+impl CReprOf<String> for std::ffi::CString {
     fn c_repr_of(input: String) -> Result<Self, Error> {
-        ::std::ffi::CString::new(input)
+        std::ffi::CString::new(input)
             .context("Could not convert String to C Repr")
             .map_err(|e| e.into())
     }
 }
 
-impl AsRust<String> for ::std::ffi::CStr {
+impl AsRust<String> for std::ffi::CStr {
     fn as_rust(&self) -> Result<String, Error> {
         self.to_str().map(|s| s.to_owned()).map_err(|e| e.into())
     }

@@ -8,7 +8,7 @@ macro_rules! generate_error_handling {
 
         fn _get_last_error(
             error: *mut *const libc::c_char,
-        ) -> ::std::result::Result<(), ::failure::Error> {
+        ) -> std::result::Result<(), ::failure::Error> {
             LAST_ERROR.with(|msg| {
                 let string = msg
                     .borrow_mut()
@@ -37,7 +37,7 @@ macro_rules! wrap {
             Err(e) => {
                 use $crate::ErrorExt;
                 let msg = e.pretty().to_string();
-                if ::std::env::var("SNIPS_ERROR_STDERR").is_ok() {
+                if std::env::var("SNIPS_ERROR_STDERR").is_ok() {
                     eprintln!("{}", msg);
                 }
                 LAST_ERROR.with(|p| *p.borrow_mut() = Some(msg));
@@ -50,8 +50,6 @@ macro_rules! wrap {
 #[cfg(test)]
 mod tests {
     #![allow(dead_code)]
-    #![allow(private_no_mangle_fns)]
 
-    extern crate libc;
     generate_error_handling!(get_last_error);
 }
