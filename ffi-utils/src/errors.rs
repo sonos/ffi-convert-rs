@@ -3,7 +3,7 @@ macro_rules! generate_error_handling {
     ($get_error_symbol:ident) => {
         use std::cell::RefCell;
         thread_local! {
-            static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
+            pub(crate) static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
         }
 
         fn _get_last_error(
