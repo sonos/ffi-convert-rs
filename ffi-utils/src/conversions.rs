@@ -267,3 +267,25 @@ impl AsRust<String> for std::ffi::CStr {
         self.to_str().map(|s| s.to_owned()).map_err(|e| e.into())
     }
 }
+
+impl AsRust<i32> for i32 {
+    fn as_rust(&self) -> Result<i32, Error> {
+        Ok(*self)
+    }
+}
+
+impl AsRust<f32> for f32 {
+    fn as_rust(&self) -> Result<f32, Error> {
+        Ok(*self)
+    }
+}
+
+impl<U: AsRust<V>, V> AsRust<Option<V>> for RawPointerTo<U> {
+    fn as_rust(&self) -> Result<Option<V>, Error> {
+        Ok(if *self != null() {
+            Some(unsafe { U::as_rust(&U::from_raw_pointer(*self)?)? })
+        } else {
+            None
+        })
+    }
+}
