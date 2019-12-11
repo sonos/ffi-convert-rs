@@ -75,3 +75,35 @@ impl Drop for CStringArray {
         };
     }
 }
+
+pub struct CArray<T> {
+    data_ptr: *const T,
+    size: usize,
+}
+
+impl<U: AsRust<V>, V> AsRust<Vec<V>> for CArray<U> {
+    fn as_rust(&self) -> Result<Vec<V>, Error> {
+        let values = unsafe { std::slice::from_raw_parts_mut(self.data_ptr as *mut U, self.size) };
+        let mut vec = Vec::new();
+        for value in values {
+            vec.push(value.as_rust()?);
+        }
+
+        Ok(vec)
+    }
+}
+
+impl<U: CReprOf<V>, V> CReprOf<Vec<V>> for CArray<U> {
+    fn c_repr_of(input: Vec<V>) -> Result<Self, Error> {
+        let mut output_array: Vec<U> = Vec::new();
+        for input_item in input {
+            output_array.push(U::c_repr_of(input_item)?);
+        }
+        let size = output_array.len();
+        let output_array = output_array.into_boxed_slice();
+        Ok(Self {
+            data_ptr: Box::into_raw(output_array) as *const U,
+            size,
+        })
+    }
+}
