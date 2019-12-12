@@ -76,6 +76,7 @@ impl Drop for CStringArray {
     }
 }
 
+#[repr(C)]
 pub struct CArray<T> {
     data_ptr: *const T,
     size: usize,
@@ -84,7 +85,7 @@ pub struct CArray<T> {
 impl<U: AsRust<V>, V> AsRust<Vec<V>> for CArray<U> {
     fn as_rust(&self) -> Result<Vec<V>, Error> {
         let values = unsafe { std::slice::from_raw_parts_mut(self.data_ptr as *mut U, self.size) };
-        let mut vec = Vec::new();
+        let mut vec = Vec::with_capacity(values.len());
         for value in values {
             vec.push(value.as_rust()?);
         }
