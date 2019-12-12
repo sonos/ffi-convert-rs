@@ -39,7 +39,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
                      Type::Path(path_t) => quote!(RawPointerTo::< #path_t >),
                      _ => panic!("")
                  }}
-                 Type::Path(path_t) => { path_to_turbofish_path(&path_t.path) }
+                 Type::Path(path_t) => { generic_path_to_concrete_type_path(&path_t.path) }
                  _ => { panic!("") }
              }))
         .map(|(field_name, field_type)|
@@ -59,7 +59,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     .into()
 }
 
-fn path_to_turbofish_path(path: &syn::Path) -> proc_macro2::TokenStream {
+fn generic_path_to_concrete_type_path(path: &syn::Path) -> proc_macro2::TokenStream {
     let mut path = path.clone();
     let last_segment = path.segments.pop().unwrap();
     let segments = &path.segments;
