@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use failure::Error;
-    use ffi_utils::{AsRust, CArray, CReprOf, RawPointerTo};
+    use ffi_utils::{AsRust, CArray, CReprOf};
 
     pub struct Pancake {
         pub start: f32,
@@ -13,7 +12,7 @@ mod tests {
 
     #[repr(C)]
     #[derive(CReprOf, AsRust)]
-    #[converted(Pancakes)]
+    #[converted(Pancake)]
     pub struct CPancake {
         start: f32,
         end: f32,
@@ -57,7 +56,7 @@ mod tests {
 
     #[test]
     fn should_work() {
-        let pancakes = Pancakes {
+        let pancakes = Pancake {
             start: 0.0,
             end: 2.0,
             dummy: Dummy { count: 2 },
@@ -65,6 +64,6 @@ mod tests {
             toppings: vec![Topping { amount: 2 }, Topping { amount: 3 }],
         };
 
-        let _c_pancakes = CPancakes::c_repr_of(pancakes).unwrap();
+        let _c_pancakes = CPancake::c_repr_of(pancakes).unwrap();
     }
 }
