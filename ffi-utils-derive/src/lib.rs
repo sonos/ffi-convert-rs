@@ -36,7 +36,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
             (field.ident.as_ref().expect("field should have an ident"),
              match &field.ty {
                  Type::Ptr(ptr_t) => { match &*ptr_t.elem {
-                     Type::Path(path_t) => quote!(RawPointerTo::< #path_t >),
+                     Type::Path(path_t) => quote!(ffi_utils::RawPointerTo::< #path_t >),
                      _ => panic!("")
                  }}
                  Type::Path(path_t) => { generic_path_to_concrete_type_path(&path_t.path) }
@@ -49,7 +49,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
 
     quote!(
         impl CReprOf<# target_type> for # struct_name {
-            fn c_repr_of(input: # target_type) -> Result<Self, Error> {
+            fn c_repr_of(input: # target_type) -> Result<Self, ffi_utils::Error> {
                 Ok(Self {
                     # ( # fields, )*
                 })
@@ -110,7 +110,7 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
 
     quote!(
         impl AsRust<#target_type> for #struct_name {
-            fn as_rust(&self) -> Result<#target_type, Error> {
+            fn as_rust(&self) -> Result<#target_type, ffi_utils::Error> {
                 Ok(#target_type {
                     #(#fields, )*
                 })
