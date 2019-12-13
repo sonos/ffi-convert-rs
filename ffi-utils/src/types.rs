@@ -108,3 +108,14 @@ impl<U: CReprOf<V>, V> CReprOf<Vec<V>> for CArray<U> {
         })
     }
 }
+
+impl<T> Drop for CArray<T> {
+    fn drop(&mut self) {
+        let _ = unsafe {
+            Box::from_raw(std::slice::from_raw_parts_mut(
+                self.data_ptr as *mut T,
+                self.size,
+            ))
+        };
+    }
+}
