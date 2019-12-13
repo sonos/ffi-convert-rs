@@ -1,3 +1,5 @@
+pub use ffi_utils_derive::*;
+
 mod conversions;
 mod errors;
 mod types;

@@ -1,0 +1,9 @@
+[package]
+name = "ffi-utils-tests"
+version = "0.1.0"
+authors = ["Deluvi <noe.baylac@protonmail.com>"]
+edition = "2018"
+
+[dependencies]
+failure = "0.1"
+ffi-utils = { path = "../ffi-utils" }
