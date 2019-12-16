@@ -3,7 +3,7 @@ use ffi_utils::{AsRust, CReprOf};
 
 #[macro_export]
 macro_rules! generate_round_trip_rust_c_rust {
-    ($func_name:ident, $rust_struct:path, $c_struct:path, $builder:block) => {
+    ($func_name:ident, $rust_struct:ty, $c_struct:ty, $builder:block) => {
         #[test]
         fn $func_name() {
             use $crate::round_trip_test_rust_c_rust;
