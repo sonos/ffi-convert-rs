@@ -238,6 +238,12 @@ impl CReprOf<String> for std::ffi::CString {
     }
 }
 
+impl CReprOf<String> for libc::c_char {
+    fn c_repr_of(input: String) -> Result<Self, Error> {
+        Ok(unsafe { *std::ffi::CString::c_repr_of(input).map(|s| s.into_raw_pointer() as *const libc::c_char)? })
+    }
+}
+
 impl CReprOf<f32> for f32 {
     fn c_repr_of(input: f32) -> Result<f32, Error> {
         Ok(input)
