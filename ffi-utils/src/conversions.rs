@@ -1,7 +1,5 @@
 use failure::{ensure, format_err, Error, ResultExt};
 
-use std::ptr::null;
-
 #[macro_export]
 macro_rules! convert_to_c_string {
     ($string:expr) => {
@@ -258,13 +256,9 @@ impl CReprOf<i32> for i32 {
 
 pub type RawPointerTo<T> = *const T;
 
-impl<U: CReprOf<V>, V> CReprOf<Option<V>> for RawPointerTo<U> {
-    fn c_repr_of(input: Option<V>) -> Result<Self, Error> {
-        Ok(if let Some(inp) = input {
-            U::c_repr_of(inp)?.into_raw_pointer()
-        } else {
-            null() as *const _
-        })
+impl<U: CReprOf<V>, V> CReprOf<V> for RawPointerTo<U> {
+    fn c_repr_of(input: V) -> Result<Self, Error> {
+        Ok(U::c_repr_of(input)?.into_raw_pointer())
     }
 }
 
@@ -286,12 +280,8 @@ impl AsRust<f32> for f32 {
     }
 }
 
-impl<U: AsRust<V>, V> AsRust<Option<V>> for RawPointerTo<U> {
-    fn as_rust(&self) -> Result<Option<V>, Error> {
-        Ok(if *self != null() {
-            Some(unsafe { U::as_rust(&U::from_raw_pointer(*self)?)? })
-        } else {
-            None
-        })
+impl<U: AsRust<V>, V> AsRust<V> for RawPointerTo<U> {
+    fn as_rust(&self) -> Result<V, Error> {
+        Ok(unsafe { U::as_rust(&U::from_raw_pointer(*self)?)? })
     }
 }
