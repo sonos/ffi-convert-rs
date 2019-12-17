@@ -7,7 +7,7 @@ use syn::Type;
 
 use quote::quote;
 
-#[proc_macro_derive(CReprOf, attributes(target_type))]
+#[proc_macro_derive(CReprOf, attributes(converted, nullable))]
 pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_creprof_macro(&ast)
@@ -41,10 +41,25 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
                  }}
                  Type::Path(path_t) => { generic_path_to_concrete_type_path(&path_t.path) }
                  _ => { panic!("") }
-             }))
-        .map(|(field_name, field_type)|
-            quote!(#field_name: #field_type ::c_repr_of(input.#field_name)?)
-        )
+             },
+             &field.attrs))
+        .map(|(field_name, field_type, field_attrs)| {
+            let nullable = field_attrs.iter().find(|attr| {
+                attr.path.get_ident().map(|it| it.to_string()) == Some("nullable".into())
+            });
+
+            if let Some(_it) = nullable {
+                quote!(
+                    #field_name: if let Some(it) = input.#field_name {
+                        #field_type::c_repr_of(it)?
+                    } else {
+                        std::ptr::null() as _
+                    }
+                )
+            } else {
+                quote!(#field_name: #field_type ::c_repr_of(input.#field_name)?)
+            }
+        })
         .collect::<Vec<_>>();
 
     quote!(
@@ -78,7 +93,7 @@ fn generic_path_to_concrete_type_path(path: &syn::Path) -> proc_macro2::TokenStr
     }
 }
 
-#[proc_macro_derive(AsRust, attributes(target_type))]
+#[proc_macro_derive(AsRust, attributes(converted, nullable))]
 pub fn asrust_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_asrust_macro(&ast)
@@ -104,8 +119,27 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
     let fields: Vec<_> = data
         .fields
         .iter()
-        .map(|field| field.ident.as_ref().expect("field should have an ident"))
-        .map(|field_name| quote!(#field_name : self.#field_name .as_rust()?))
+        .map(|field|
+            (field.ident.as_ref().expect("field should have an ident"),
+             &field.attrs)
+        )
+        .map(|(field_name, field_attrs)| {
+            let nullable = field_attrs.iter().find(|attr| {
+                attr.path.get_ident().map(|it| it.to_string()) == Some("nullable".into())
+            });
+
+            if let Some(_it) = nullable {
+                quote!(
+                    #field_name: if self.#field_name != std::ptr::null() {
+                        Some(self.#field_name.as_rust()?)
+                    } else {
+                        None
+                    }
+                )
+            } else {
+                quote!(#field_name : self.#field_name.as_rust()?)
+            }
+        })
         .collect::<Vec<_>>();
 
     quote!(
