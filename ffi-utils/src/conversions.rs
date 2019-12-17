@@ -250,6 +250,12 @@ impl CReprOf<i32> for i32 {
     }
 }
 
+impl CReprOf<usize> for i32 {
+    fn c_repr_of(input: usize) -> Result<i32, Error> {
+        Ok(input as i32)
+    }
+}
+
 pub type RawPointerTo<T> = *const T;
 
 impl<U: CReprOf<V>, V> CReprOf<Option<V>> for RawPointerTo<U> {
@@ -259,6 +265,12 @@ impl<U: CReprOf<V>, V> CReprOf<Option<V>> for RawPointerTo<U> {
         } else {
             null() as *const _
         })
+    }
+}
+
+impl CReprOf<String> for RawPointerTo<libc::c_char> {
+    fn c_repr_of(input: String) -> Result<Self, Error> {
+        convert_to_c_string_result!(input)
     }
 }
 
@@ -287,5 +299,17 @@ impl<U: AsRust<V>, V> AsRust<Option<V>> for RawPointerTo<U> {
         } else {
             None
         })
+    }
+}
+
+impl AsRust<String> for RawPointerTo<libc::c_char> {
+    fn as_rust(&self) -> Result<String, Error> {
+        Ok(create_rust_string_from!(*self))
+    }
+}
+
+impl AsRust<usize> for i32 {
+    fn as_rust(&self) -> Result<usize, Error> {
+        Ok(*self as usize)
     }
 }
