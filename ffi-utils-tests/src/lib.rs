@@ -17,8 +17,9 @@ mod tests {
         start: f32,
         end: f32,
         dummy: CDummy,
+        #[nullable]
         sauce: *const CSauce,
-        toppings: CArray<CTopping>,
+        toppings: *const CArray<CTopping>
     }
 
     pub struct Sauce {
