@@ -115,6 +115,42 @@ macro_rules! create_optional_rust_vec_string_from {
     };
 }
 
+macro_rules! impl_c_repr_of_for {
+    ($typ:ty) => {
+        impl CReprOf<$typ> for $typ {
+            fn c_repr_of(input: $typ) -> Result<$typ, Error> {
+                Ok(input)
+            }
+        }
+    };
+
+    ($from_typ:ty, $to_typ:ty) => {
+        impl CReprOf<$from_typ> for $to_typ {
+            fn c_repr_of(input: $from_typ) -> Result<$to_typ, Error> {
+                Ok(input as $to_typ)
+            }
+        }
+    }
+}
+
+macro_rules! impl_as_rust_for {
+    ($typ:ty) => {
+        impl AsRust<$typ> for $typ {
+            fn as_rust(&self) -> Result<$typ, Error> {
+                Ok(*self)
+            }
+        }
+    };
+
+    ($from_typ:ty, $to_typ:ty) => {
+        impl AsRust<$from_typ> for $to_typ {
+            fn as_rust(&self) -> Result<$to_typ, Error> {
+                Ok(*self as $to_typ)
+            }
+        }
+    };
+}
+
 pub fn point_to_string(pointer: *mut *const libc::c_char, string: String) -> Result<(), Error> {
     unsafe { *pointer = std::ffi::CString::c_repr_of(string)?.into_raw_pointer() }
     Ok(())
@@ -230,29 +266,24 @@ impl RawBorrow<libc::c_char> for std::ffi::CStr {
     }
 }
 
+impl_c_repr_of_for!(bool);
+impl_c_repr_of_for!(usize);
+impl_c_repr_of_for!(i16);
+impl_c_repr_of_for!(u16);
+impl_c_repr_of_for!(i32);
+impl_c_repr_of_for!(u32);
+impl_c_repr_of_for!(i64);
+impl_c_repr_of_for!(i64);
+impl_c_repr_of_for!(f32);
+impl_c_repr_of_for!(f64);
+
+impl_c_repr_of_for!(usize, i32);
+
 impl CReprOf<String> for std::ffi::CString {
     fn c_repr_of(input: String) -> Result<Self, Error> {
         std::ffi::CString::new(input)
             .context("Could not convert String to C Repr")
             .map_err(|e| e.into())
-    }
-}
-
-impl CReprOf<f32> for f32 {
-    fn c_repr_of(input: f32) -> Result<f32, Error> {
-        Ok(input)
-    }
-}
-
-impl CReprOf<i32> for i32 {
-    fn c_repr_of(input: i32) -> Result<i32, Error> {
-        Ok(input)
-    }
-}
-
-impl CReprOf<usize> for i32 {
-    fn c_repr_of(input: usize) -> Result<i32, Error> {
-        Ok(input as i32)
     }
 }
 
@@ -274,21 +305,19 @@ impl CReprOf<String> for RawPointerTo<libc::c_char> {
     }
 }
 
+impl_as_rust_for!(bool);
+impl_as_rust_for!(i16);
+impl_as_rust_for!(u16);
+impl_as_rust_for!(i32);
+impl_as_rust_for!(u32);
+impl_as_rust_for!(i64);
+impl_as_rust_for!(u64);
+
+impl_as_rust_for!(i32, usize);
+
 impl AsRust<String> for std::ffi::CStr {
     fn as_rust(&self) -> Result<String, Error> {
         self.to_str().map(|s| s.to_owned()).map_err(|e| e.into())
-    }
-}
-
-impl AsRust<i32> for i32 {
-    fn as_rust(&self) -> Result<i32, Error> {
-        Ok(*self)
-    }
-}
-
-impl AsRust<f32> for f32 {
-    fn as_rust(&self) -> Result<f32, Error> {
-        Ok(*self)
     }
 }
 
@@ -305,11 +334,5 @@ impl<U: AsRust<V>, V> AsRust<Option<V>> for RawPointerTo<U> {
 impl AsRust<String> for RawPointerTo<libc::c_char> {
     fn as_rust(&self) -> Result<String, Error> {
         Ok(create_rust_string_from!(*self))
-    }
-}
-
-impl AsRust<usize> for i32 {
-    fn as_rust(&self) -> Result<usize, Error> {
-        Ok(*self as usize)
     }
 }
