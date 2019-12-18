@@ -143,7 +143,7 @@ macro_rules! impl_as_rust_for {
     };
 
     ($from_typ:ty, $to_typ:ty) => {
-        impl AsRust<$from_typ> for $to_typ {
+        impl AsRust<$to_typ> for $from_typ {
             fn as_rust(&self) -> Result<$to_typ, Error> {
                 Ok(*self as $to_typ)
             }
@@ -272,7 +272,6 @@ impl_c_repr_of_for!(i16);
 impl_c_repr_of_for!(u16);
 impl_c_repr_of_for!(i32);
 impl_c_repr_of_for!(u32);
-impl_c_repr_of_for!(i64);
 impl_c_repr_of_for!(i64);
 impl_c_repr_of_for!(f32);
 impl_c_repr_of_for!(f64);
