@@ -78,7 +78,7 @@ fn generic_path_to_concrete_type_path(path: &syn::Path) -> proc_macro2::TokenStr
     }
 }
 
-#[proc_macro_derive(AsRust, attributes(converted))]
+#[proc_macro_derive(AsRust, attributes(target_type))]
 pub fn asrust_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_asrust_macro(&ast)
@@ -90,9 +90,9 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
         .attrs
         .iter()
         .find(|attribute| {
-            attribute.path.get_ident().map(|it| it.to_string()) == Some("converted".into())
+            attribute.path.get_ident().map(|it| it.to_string()) == Some("target_type".into())
         })
-        .expect("Can't derive CReprOf without converted helper attribute.");
+        .expect("Can't derive CReprOf without target_type helper attribute.");
 
     let target_type: syn::Path = converted_attribute.parse_args().unwrap();
 
