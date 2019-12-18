@@ -273,6 +273,7 @@ impl_c_repr_of_for!(u16);
 impl_c_repr_of_for!(i32);
 impl_c_repr_of_for!(u32);
 impl_c_repr_of_for!(i64);
+impl_c_repr_of_for!(u64);
 impl_c_repr_of_for!(f32);
 impl_c_repr_of_for!(f64);
 
@@ -311,6 +312,8 @@ impl_as_rust_for!(i32);
 impl_as_rust_for!(u32);
 impl_as_rust_for!(i64);
 impl_as_rust_for!(u64);
+impl_as_rust_for!(f32);
+impl_as_rust_for!(f64);
 
 impl_as_rust_for!(i32, usize);
 
