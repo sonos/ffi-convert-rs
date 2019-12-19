@@ -9,7 +9,7 @@ use crate::create_rust_string_from;
 
 /// Used as a return type of functions that can encounter errors
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
 #[allow(non_camel_case_types)]
 pub enum SNIPS_RESULT {
     /// The function returned successfully
