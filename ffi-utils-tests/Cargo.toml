@@ -7,3 +7,4 @@ edition = "2018"
 [dependencies]
 failure = "0.1"
 ffi-utils = { path = "../ffi-utils" }
+libc = "0.2.66"

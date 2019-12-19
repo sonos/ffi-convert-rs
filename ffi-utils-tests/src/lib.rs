@@ -1,5 +1,5 @@
 use failure::{bail, Fallible};
-use ffi_utils::{AsRust, CReprOf};
+use ffi_utils::{AsRust, CReprOf, CArray};
 
 #[macro_export]
 macro_rules! generate_round_trip_rust_c_rust {
@@ -30,66 +30,68 @@ where
     Ok(())
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Pancake {
+    pub name: String,
+    pub start: f32,
+    pub end: f32,
+    pub dummy: Dummy,
+    pub sauce: Option<Sauce>,
+    pub toppings: Vec<Topping>,
+}
+
+#[repr(C)]
+#[derive(CReprOf, AsRust)]
+#[converted(Pancake)]
+pub struct CPancake {
+    name: *const libc::c_char,
+    start: f32,
+    end: f32,
+    dummy: CDummy,
+    #[nullable]
+    sauce: *const CSauce,
+    toppings: *const CArray<CTopping>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Sauce {
+    pub volume: f32,
+}
+
+#[repr(C)]
+#[derive(CReprOf, AsRust)]
+#[converted(Sauce)]
+pub struct CSauce {
+    volume: f32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Topping {
+    pub amount: i32,
+}
+
+#[repr(C)]
+#[derive(CReprOf, AsRust)]
+#[converted(Topping)]
+pub struct CTopping {
+    amount: i32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Dummy {
+    pub count: i32,
+}
+
+#[repr(C)]
+#[derive(CReprOf, AsRust)]
+#[converted(Dummy)]
+pub struct CDummy {
+    count: i32,
+}
+
 #[cfg(test)]
 mod tests {
-    use ffi_utils::{AsRust, CArray, CReprOf};
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub struct Pancake {
-        pub start: f32,
-        pub end: f32,
-        pub dummy: Dummy,
-        pub sauce: Option<Sauce>,
-        pub toppings: Vec<Topping>,
-    }
-
-    #[repr(C)]
-    #[derive(CReprOf, AsRust)]
-    #[converted(Pancake)]
-    pub struct CPancake {
-        start: f32,
-        end: f32,
-        dummy: CDummy,
-        #[nullable]
-        sauce: *const CSauce,
-        toppings: *const CArray<CTopping>
-    }
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub struct Sauce {
-        pub volume: f32,
-    }
-
-    #[repr(C)]
-    #[derive(CReprOf, AsRust)]
-    #[converted(Sauce)]
-    pub struct CSauce {
-        volume: f32,
-    }
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub struct Topping {
-        pub amount: i32,
-    }
-
-    #[repr(C)]
-    #[derive(CReprOf, AsRust)]
-    #[converted(Topping)]
-    pub struct CTopping {
-        amount: i32,
-    }
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub struct Dummy {
-        pub count: i32,
-    }
-
-    #[repr(C)]
-    #[derive(CReprOf, AsRust)]
-    #[converted(Dummy)]
-    pub struct CDummy {
-        count: i32,
-    }
+    use super::*;
 
     generate_round_trip_rust_c_rust!(round_trip_sauce, Sauce, CSauce, { Sauce { volume: 4.2 } });
 
