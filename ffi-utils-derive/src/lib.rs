@@ -6,7 +6,7 @@ use syn;
 
 use quote::quote;
 
-#[proc_macro_derive(CReprOf, attributes(converted, nullable))]
+#[proc_macro_derive(CReprOf, attributes(target_type, nullable))]
 pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_creprof_macro(&ast)
@@ -55,7 +55,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     ).into()
 }
 
-#[proc_macro_derive(AsRust, attributes(converted, nullable))]
+#[proc_macro_derive(AsRust, attributes(target_type, nullable))]
 pub fn asrust_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_asrust_macro(&ast)
@@ -105,14 +105,14 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
 }
 
 fn parse_target_type(attrs: &Vec<syn::Attribute>) -> syn::Path {
-    let converted_attribute= attrs
+    let target_type_attribute= attrs
         .iter()
         .find(|attribute| {
-            attribute.path.get_ident().map(|it| it.to_string()) == Some("converted".into())
+            attribute.path.get_ident().map(|it| it.to_string()) == Some("target_type".into())
         })
-        .expect("Can't derive CReprOf without converted helper attribute.");
+        .expect("Can't derive CReprOf without target_type helper attribute.");
 
-    converted_attribute.parse_args().unwrap()
+    target_type_attribute.parse_args().unwrap()
 }
 
 fn parse_data_to_fields(data: &syn::Data) -> Vec<(&syn::Ident, proc_macro2::TokenStream, bool, bool)> {
