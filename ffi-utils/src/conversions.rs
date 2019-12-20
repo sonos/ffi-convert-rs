@@ -293,12 +293,6 @@ impl<U: CReprOf<V>, V> CReprOf<V> for RawPointerTo<U> {
     }
 }
 
-impl CReprOf<String> for RawPointerTo<libc::c_char> {
-    fn c_repr_of(input: String) -> Result<Self, Error> {
-        convert_to_c_string_result!(input)
-    }
-}
-
 impl_as_rust_for!(bool);
 impl_as_rust_for!(i16);
 impl_as_rust_for!(u16);
@@ -320,11 +314,5 @@ impl AsRust<String> for std::ffi::CStr {
 impl<U: AsRust<V>, V> AsRust<V> for RawPointerTo<U> {
     fn as_rust(&self) -> Result<V, Error> {
         Ok(unsafe { U::as_rust(&U::from_raw_pointer(*self)?)? })
-    }
-}
-
-impl AsRust<String> for RawPointerTo<libc::c_char> {
-    fn as_rust(&self) -> Result<String, Error> {
-        Ok(create_rust_string_from!(*self))
     }
 }
