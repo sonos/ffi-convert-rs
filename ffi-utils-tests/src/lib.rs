@@ -1,5 +1,5 @@
-use failure::{bail, Fallible};
-use ffi_utils::{AsRust, CReprOf, CArray};
+use failure::{bail, Fallible, ResultExt};
+use ffi_utils::*;
 
 #[macro_export]
 macro_rules! generate_round_trip_rust_c_rust {
@@ -135,7 +135,6 @@ mod tests {
             name: String::from("Here is your pancake"),
             description: None,
             start: 0.0,
-            end: 2.0,
             end: Some(2.0),
             dummy: Dummy { count: 2 },
             sauce: None,
