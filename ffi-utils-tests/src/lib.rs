@@ -1,5 +1,5 @@
-use failure::{bail, Fallible};
-use ffi_utils::{AsRust, CReprOf};
+use failure::{bail, Fallible, ResultExt};
+use ffi_utils::*;
 
 #[macro_export]
 macro_rules! generate_round_trip_rust_c_rust {
@@ -30,65 +30,90 @@ where
     Ok(())
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Pancake {
+    pub name: String,
+    pub description: Option<String>,
+    pub start: f32,
+    pub end: Option<f32>,
+    pub dummy: Dummy,
+    pub sauce: Option<Sauce>,
+    pub toppings: Vec<Topping>,
+    pub layers: Option<Vec<Layer>>
+}
+
+#[repr(C)]
+#[derive(CReprOf, AsRust)]
+#[target_type(Pancake)]
+pub struct CPancake {
+    name: *const libc::c_char,
+    #[nullable]
+    description: *const libc::c_char,
+    start: f32,
+    #[nullable]
+    end: *const f32,
+    dummy: CDummy,
+    #[nullable]
+    sauce: *const CSauce,
+    toppings: *const CArray<CTopping>,
+    #[nullable]
+    layers: *const CArray<CLayer>
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Sauce {
+    pub volume: f32,
+}
+
+#[repr(C)]
+#[derive(CReprOf, AsRust)]
+#[target_type(Sauce)]
+pub struct CSauce {
+    volume: f32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Topping {
+    pub amount: i32,
+}
+
+#[repr(C)]
+#[derive(CReprOf, AsRust)]
+#[target_type(Topping)]
+pub struct CTopping {
+    amount: i32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Layer {
+    pub number: i32,
+    pub subtitle: Option<String>
+}
+
+#[repr(C)]
+#[derive(CReprOf, AsRust)]
+#[target_type(Layer)]
+pub struct CLayer {
+    number: i32,
+    #[nullable]
+    subtitle: *const libc::c_char,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Dummy {
+    pub count: i32,
+}
+
+#[repr(C)]
+#[derive(CReprOf, AsRust)]
+#[target_type(Dummy)]
+pub struct CDummy {
+    count: i32,
+}
+
 #[cfg(test)]
 mod tests {
-    use ffi_utils::{AsRust, CArray, CReprOf};
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub struct Pancake {
-        pub start: f32,
-        pub end: f32,
-        pub dummy: Dummy,
-        pub sauce: Option<Sauce>,
-        pub toppings: Vec<Topping>,
-    }
-
-    #[repr(C)]
-    #[derive(CReprOf, AsRust)]
-    #[converted(Pancake)]
-    pub struct CPancake {
-        start: f32,
-        end: f32,
-        dummy: CDummy,
-        sauce: *const CSauce,
-        toppings: CArray<CTopping>,
-    }
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub struct Sauce {
-        pub volume: f32,
-    }
-
-    #[repr(C)]
-    #[derive(CReprOf, AsRust)]
-    #[converted(Sauce)]
-    pub struct CSauce {
-        volume: f32,
-    }
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub struct Topping {
-        pub amount: i32,
-    }
-
-    #[repr(C)]
-    #[derive(CReprOf, AsRust)]
-    #[converted(Topping)]
-    pub struct CTopping {
-        amount: i32,
-    }
-
-    #[derive(Clone, Debug, PartialEq)]
-    pub struct Dummy {
-        pub count: i32,
-    }
-
-    #[repr(C)]
-    #[derive(CReprOf, AsRust)]
-    #[converted(Dummy)]
-    pub struct CDummy {
-        count: i32,
-    }
+    use super::*;
 
     generate_round_trip_rust_c_rust!(round_trip_sauce, Sauce, CSauce, { Sauce { volume: 4.2 } });
 
@@ -98,13 +123,23 @@ mod tests {
 
     generate_round_trip_rust_c_rust!(round_trip_dummy, Dummy, CDummy, { Dummy { count: 2 } });
 
+    generate_round_trip_rust_c_rust!(round_trip_layer, Layer, CLayer, {
+        Layer {
+            number: 1,
+            subtitle: Some(String::from("first layer"))
+        }
+    });
+
     generate_round_trip_rust_c_rust!(round_trip_pancake, Pancake, CPancake, {
         Pancake {
+            name: String::from("Here is your pancake"),
+            description: None,
             start: 0.0,
-            end: 2.0,
+            end: Some(2.0),
             dummy: Dummy { count: 2 },
-            sauce: Some(Sauce { volume: 4.2 }),
+            sauce: None,
             toppings: vec![Topping { amount: 2 }, Topping { amount: 3 }],
+            layers: Some(vec![Layer { number: 1, subtitle: Some(String::from("first layer"))}]),
         }
     });
 }
