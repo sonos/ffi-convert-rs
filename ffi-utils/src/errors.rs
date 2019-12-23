@@ -37,10 +37,10 @@
 #[macro_export]
 macro_rules! generate_error_handling {
     ($get_error_symbol:ident) => {
-        $crate::generate_error_handling!($get_error_symbol, $crate::SNIPS_RESULT, SNIPS_RESULT_KO, $crate::wrap);
+        $crate::generate_error_handling!($get_error_symbol, $crate::SNIPS_RESULT, SNIPS_RESULT_OK, SNIPS_RESULT_KO, $crate::wrap);
     };
 
-    ($get_error_symbol:ident, $error_type:ty, $error_ko:ident, $wrap:path) => {
+    ($get_error_symbol:ident, $error_type:ty, $error_ok:ident, $error_ko:ident, $wrap:path) => {
         use std::cell::RefCell;
         thread_local! {
             pub(crate) static LAST_ERROR: RefCell<Option<String>> = RefCell::new(None);
@@ -52,7 +52,17 @@ macro_rules! generate_error_handling {
                     stringify!($error_type),
                     "` and it returned `",
                     stringify!($error_ko),
-                    "`") =>
+                    "`"),
+            " # Arguments",
+            "  - `error`: pointer to a char array that will contain the error description, this should",
+            " then be destroyed properly using the dedicated method in this lib to prevent leaks",
+            "",
+            " # Return type",
+            concat!(" Should return ", stringify!($error_ok), "."),
+            "",
+            concat!(" If ", stringify!($error_ko), " is returned, then something very wrong happened in the lib.")
+
+                     =>
 
             #[no_mangle]
             pub extern "C" fn $get_error_symbol(
@@ -98,7 +108,7 @@ macro_rules! generate_error_handling {
 
         $crate::generate_wrap!($wrap_name, $error_type_name, $error_ok, $error_ko, $error_stderr_envvar, $crate::ErrorExt);
 
-        $crate::generate_error_handling!($get_error_symbol, $error_type_name, $error_ko, $wrap_name);
+        $crate::generate_error_handling!($get_error_symbol, $error_type_name, $error_ok, $error_ko, $wrap_name);
 
     };
 }
