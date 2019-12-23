@@ -72,7 +72,7 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
                 (true, true) =>
                     quote!(
                         #field_name: if self.#field_name != std::ptr::null() {
-                            Some(create_rust_string_from!(self.#field_name))
+                            Some(ffi_utils::create_rust_string_from!(self.#field_name))
                         } else {
                             None
                         }
@@ -86,7 +86,7 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
                         }
                     ),
                 (false, true) =>
-                    quote!(#field_name : create_rust_string_from!(self.#field_name)),
+                    quote!(#field_name : ffi_utils::create_rust_string_from!(self.#field_name)),
                 (false, false) =>
                     quote!(#field_name : self.#field_name.as_rust()?)
             }
