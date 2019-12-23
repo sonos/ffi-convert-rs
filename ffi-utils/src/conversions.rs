@@ -10,13 +10,17 @@ macro_rules! convert_to_c_string {
 #[macro_export]
 macro_rules! convert_to_c_string_result {
     ($string:expr) => {
-        std::ffi::CString::c_repr_of($string).map(|s| s.into_raw_pointer() as *const libc::c_char)
+        std::ffi::CString::c_repr_of($string).map(|s| {
+            use $crate::RawPointerConverter;
+            s.into_raw_pointer() as *const libc::c_char
+        })
     };
 }
 
 #[macro_export]
 macro_rules! convert_to_c_string_array {
     ($string_vec:expr) => {{
+        use $crate::RawPointerConverter;
         $crate::CStringArray::c_repr_of($string_vec)?.into_raw_pointer()
     }};
 }
