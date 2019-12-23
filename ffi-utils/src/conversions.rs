@@ -46,6 +46,7 @@ macro_rules! convert_to_nullable_c_string {
 #[macro_export]
 macro_rules! take_back_c_string {
     ($pointer:expr) => {{
+        use $crate::RawPointerConverter;
         let _ = unsafe { std::ffi::CString::from_raw_pointer($pointer) };
     }};
 }
@@ -62,6 +63,7 @@ macro_rules! take_back_nullable_c_string {
 #[macro_export]
 macro_rules! take_back_c_string_array {
     ($pointer:expr) => {{
+        use $crate::RawPointerConverter;
         let _ = unsafe { $crate::CStringArray::from_raw_pointer($pointer) };
     }};
 }
@@ -99,6 +101,7 @@ macro_rules! create_optional_rust_string_from {
 #[macro_export]
 macro_rules! create_rust_vec_string_from {
     ($pointer:expr) => {
+        use $crate::RawBorrow;
         unsafe { $crate::CStringArray::raw_borrow($pointer) }?.as_rust()?
     };
 }

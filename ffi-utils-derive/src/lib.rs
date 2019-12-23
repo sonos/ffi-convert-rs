@@ -23,7 +23,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
                 (true, true) =>
                     quote!(
                         #field_name: if let Some(value) = input.#field_name {
-                            convert_to_c_string_result!(value)?
+                            ffi_utils::convert_to_c_string_result!(value)?
                         } else {
                             std::ptr::null() as _
                         }
@@ -37,7 +37,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
                         }
                     ),
                 (false, true) =>
-                    quote!(#field_name: convert_to_c_string_result!(input.#field_name)?),
+                    quote!(#field_name: ffi_utils::convert_to_c_string_result!(input.#field_name)?),
                 (false, false) =>
                     quote!(#field_name: #field_type ::c_repr_of(input.#field_name)?),
             }
