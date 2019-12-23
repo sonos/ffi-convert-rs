@@ -47,6 +47,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     quote!(
         impl CReprOf<# target_type> for # struct_name {
             fn c_repr_of(input: # target_type) -> Result<Self, ffi_utils::Error> {
+                use failure::ResultExt;
                 Ok(Self {
                     # ( # fields, )*
                 })
@@ -96,6 +97,7 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
     quote!(
         impl AsRust<#target_type> for #struct_name {
             fn as_rust(&self) -> Result<#target_type, ffi_utils::Error> {
+                use failure::ResultExt;
                 Ok(#target_type {
                     #(#fields, )*
                 })

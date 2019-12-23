@@ -1,4 +1,4 @@
-use failure::{bail, Fallible, ResultExt};
+use failure::{bail, Fallible};
 use ffi_utils::*;
 
 #[macro_export]
