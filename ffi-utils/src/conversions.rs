@@ -161,6 +161,11 @@ pub fn point_to_string(pointer: *mut *const libc::c_char, string: String) -> Res
     Ok(())
 }
 
+pub fn point_to_string_mut(pointer: *mut *mut libc::c_char, string: String) -> Result<(), Error> {
+    unsafe { *pointer = std::ffi::CString::c_repr_of(string)?.into_raw() }
+    Ok(())
+}
+
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
 /// type that can be created from an object of this type.
 pub trait CReprOf<T>: Sized {
