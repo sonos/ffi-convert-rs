@@ -104,10 +104,10 @@ macro_rules! create_optional_rust_string_from {
 
 #[macro_export]
 macro_rules! create_rust_vec_string_from {
-    ($pointer:expr) => {
+    ($pointer:expr) => {{
         use $crate::RawBorrow;
         unsafe { $crate::CStringArray::raw_borrow($pointer) }?.as_rust()?
-    };
+    }};
 }
 
 #[macro_export]
