@@ -272,7 +272,6 @@ impl RawBorrow<libc::c_char> for std::ffi::CStr {
     }
 }
 
-impl_c_repr_of_for!(bool);
 impl_c_repr_of_for!(usize);
 impl_c_repr_of_for!(i16);
 impl_c_repr_of_for!(u16);
@@ -284,6 +283,12 @@ impl_c_repr_of_for!(f32);
 impl_c_repr_of_for!(f64);
 
 impl_c_repr_of_for!(usize, i32);
+
+impl CReprOf<bool> for u8 {
+    fn c_repr_of(input: bool) -> Result<u8, Error> {
+        Ok(if input { 1 } else { 0 })
+    }
+}
 
 impl CReprOf<String> for std::ffi::CString {
     fn c_repr_of(input: String) -> Result<Self, Error> {
@@ -308,7 +313,6 @@ impl CReprOf<String> for RawPointerTo<libc::c_char> {
 }
 
 
-impl_as_rust_for!(bool);
 impl_as_rust_for!(i16);
 impl_as_rust_for!(u16);
 impl_as_rust_for!(i32);
@@ -319,6 +323,12 @@ impl_as_rust_for!(f32);
 impl_as_rust_for!(f64);
 
 impl_as_rust_for!(i32, usize);
+
+impl AsRust<bool> for u8 {
+    fn as_rust(&self) -> Result<bool, Error> {
+        Ok((*self) != 0)
+    }
+}
 
 impl AsRust<String> for std::ffi::CStr {
     fn as_rust(&self) -> Result<String, Error> {

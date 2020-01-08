@@ -39,7 +39,8 @@ pub struct Pancake {
     pub dummy: Dummy,
     pub sauce: Option<Sauce>,
     pub toppings: Vec<Topping>,
-    pub layers: Option<Vec<Layer>>
+    pub layers: Option<Vec<Layer>>,
+    pub is_delicious: bool,
 }
 
 #[repr(C)]
@@ -57,7 +58,8 @@ pub struct CPancake {
     sauce: *const CSauce,
     toppings: *const CArray<CTopping>,
     #[nullable]
-    layers: *const CArray<CLayer>
+    layers: *const CArray<CLayer>,
+    is_delicious: u8
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -140,6 +142,7 @@ mod tests {
             sauce: None,
             toppings: vec![Topping { amount: 2 }, Topping { amount: 3 }],
             layers: Some(vec![Layer { number: 1, subtitle: Some(String::from("first layer"))}]),
+            is_delicious: true
         }
     });
 }
