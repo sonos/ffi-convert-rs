@@ -338,10 +338,10 @@ impl AsRust<String> for std::ffi::CStr {
 
 impl<U: AsRust<V>, V> AsRust<V> for RawPointerTo<U> {
     fn as_rust(&self) -> Result<V, Error> {
-        let retrieved_c_type = unsafe { U::from_raw_pointer(*self)? };
-        let rust_value = retrieved_c_type.as_rust();
-        retrieved_c_type.into_raw_pointer();
-        rust_value
+        let boxed_struct = unsafe { Box::from_raw(*self as *mut U) }; // We take back the ownership of the struct we point to.
+        let converted_struct = boxed_struct.as_rust();
+        Box::into_raw(boxed_struct); // We get back the original raw pointer
+        converted_struct
     }
 }
 
