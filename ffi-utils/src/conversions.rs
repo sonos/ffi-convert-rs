@@ -338,7 +338,10 @@ impl AsRust<String> for std::ffi::CStr {
 
 impl<U: AsRust<V>, V> AsRust<V> for RawPointerTo<U> {
     fn as_rust(&self) -> Result<V, Error> {
-        Ok(unsafe { U::as_rust(&U::from_raw_pointer(*self)?)? })
+        let retrieved_c_type = unsafe { U::from_raw_pointer(*self)? };
+        let rust_value = retrieved_c_type.as_rust();
+        retrieved_c_type.into_raw_pointer();
+        rust_value
     }
 }
 
