@@ -165,7 +165,7 @@ pub fn point_to_string(pointer: *mut *const libc::c_char, string: String) -> Res
 /// type that can be created from an object of this type.
 pub trait CReprOf<T>: Sized {
     fn c_repr_of(input: T) -> Result<Self, Error>;
-
+    fn do_drop(&mut self) { }
 }
 
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
@@ -296,6 +296,7 @@ impl CReprOf<String> for std::ffi::CString {
             .context("Could not convert String to C Repr")
             .map_err(|e| e.into())
     }
+    fn do_drop(&mut self) { }
 }
 
 pub type RawPointerTo<T> = *const T;
@@ -304,11 +305,18 @@ impl<U: CReprOf<V>, V> CReprOf<V> for RawPointerTo<U> {
     fn c_repr_of(input: V) -> Result<Self, Error> {
         Ok(U::c_repr_of(input)?.into_raw_pointer())
     }
+
+    fn do_drop(&mut self) {
+        let _ = unsafe { Box::<U>::from_raw(*self as *mut U) };
+    }
 }
 
 impl CReprOf<String> for RawPointerTo<libc::c_char> {
     fn c_repr_of(input: String) -> Result<Self, Error> {
         convert_to_c_string_result!(input)
+    }
+    fn do_drop(&mut self) {
+        take_back_c_string!(*self)
     }
 }
 

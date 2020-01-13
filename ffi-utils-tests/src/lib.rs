@@ -135,13 +135,27 @@ mod tests {
     generate_round_trip_rust_c_rust!(round_trip_pancake, Pancake, CPancake, {
         Pancake {
             name: String::from("Here is your pancake"),
-            description: None,
+            description: Some("I'm delicious ! ".to_string()),
             start: 0.0,
             end: Some(2.0),
             dummy: Dummy { count: 2 },
-            sauce: None,
+            sauce: Some(Sauce { volume: 32.23}),
             toppings: vec![Topping { amount: 2 }, Topping { amount: 3 }],
             layers: Some(vec![Layer { number: 1, subtitle: Some(String::from("first layer"))}]),
+            is_delicious: true
+        }
+    });
+
+    generate_round_trip_rust_c_rust!(round_trip_pancake_2, Pancake, CPancake, {
+        Pancake {
+            name: String::from("Here is your pancake"),
+            description: Some("I'm delicious ! ".to_string()),
+            start: 0.0,
+            end: None,
+            dummy: Dummy { count: 2 },
+            sauce: None,
+            toppings: vec![],
+            layers: Some(vec![]),
             is_delicious: true
         }
     });

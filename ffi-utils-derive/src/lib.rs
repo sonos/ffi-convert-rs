@@ -6,7 +6,7 @@ use syn;
 
 use quote::quote;
 
-#[proc_macro_derive(CReprOf, attributes(target_type, nullable))]
+#[proc_macro_derive(CReprOf, attributes(target_type, nullable, no_drop_impl))]
 pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_creprof_macro(&ast)
@@ -15,11 +15,14 @@ pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
 fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     let struct_name = &input.ident;
     let target_type = parse_target_type(&input.attrs);
+    let disable_drop_impl = parse_no_drop_impl_flag(&input.attrs);
 
-    let fields = parse_struct_fields(&input.data)
-        .into_iter()
+    let fields = parse_struct_fields(&input.data);
+
+    let c_repr_of_fields = fields
+        .iter()
         .map(|(field_name, field_type, is_nullable_field)| {
-            if is_nullable_field {
+            if *is_nullable_field {
                 quote!(
                     #field_name: if let Some(value) = input.#field_name {
                         #field_type::c_repr_of(value)?
@@ -33,16 +36,53 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
         })
         .collect::<Vec<_>>();
 
-    quote!(
+    let do_drop_fields = fields
+        .iter()
+        .map(|(field_name, field_type, is_nullable_field)| {
+            if *is_nullable_field {
+                quote!(
+                    if !self.#field_name.is_null() {
+                       self.#field_name.do_drop()
+                    }
+                )
+            } else {
+                quote!(self.# field_name.do_drop())
+            }
+        });
+
+    let c_repr_of_impl = quote!(
         impl CReprOf<# target_type> for # struct_name {
             fn c_repr_of(input: # target_type) -> Result<Self, ffi_utils::Error> {
                 use failure::ResultExt;
                 Ok(Self {
-                    # ( # fields, )*
+                    # ( # c_repr_of_fields, )*
                 })
             }
+
+            fn do_drop(&mut self) {
+                # ( #do_drop_fields );*
+            }
         }
-    ).into()
+    );
+
+    let drop_impl = quote!(
+        impl Drop for # struct_name {
+            fn drop(&mut self) {
+                self.do_drop();
+            }
+        }
+    );
+
+    { if disable_drop_impl {
+        quote! {
+            # c_repr_of_impl
+        }
+    } else {
+        quote! {
+            # c_repr_of_impl
+            # drop_impl
+        }
+    }}.into()
 }
 
 #[proc_macro_derive(AsRust, attributes(target_type, nullable))]
@@ -61,7 +101,7 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
             match is_nullable {
                 true =>
                     quote!(
-                        #field_name: if self.#field_name != std::ptr::null() {
+                        #field_name: if !self.#field_name.is_null() {
                             Some(self.#field_name.as_rust()?)
                         } else {
                             None
@@ -94,6 +134,15 @@ fn parse_target_type(attrs: &Vec<syn::Attribute>) -> syn::Path {
         .expect("Can't derive CReprOf without target_type helper attribute.");
 
     target_type_attribute.parse_args().unwrap()
+}
+
+fn parse_no_drop_impl_flag(attrs: &Vec<syn::Attribute>) -> bool {
+    attrs
+        .iter()
+        .find(|attribute| {
+            attribute.path.get_ident().map(|it| it.to_string()) == Some("no_drop_impl".to_string())
+        })
+        .is_some()
 }
 
 fn parse_struct_fields(data: &syn::Data) -> Vec<(&syn::Ident, proc_macro2::TokenStream, bool)> {
