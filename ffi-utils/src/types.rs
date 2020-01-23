@@ -63,8 +63,8 @@ impl CReprOf<Vec<String>> for CStringArray {
     }
 }
 
-impl Drop for CStringArray {
-    fn drop(&mut self) {
+impl CDrop for CStringArray {
+    fn do_drop(&mut self) {
         let _ = unsafe {
             let y = Box::from_raw(std::slice::from_raw_parts_mut(
                 self.data as *mut *mut libc::c_char,
@@ -96,7 +96,7 @@ impl<U: AsRust<V>, V> AsRust<Vec<V>> for CArray<U> {
     }
 }
 
-impl<U: CReprOf<V>, V> CReprOf<Vec<V>> for CArray<U> {
+impl<U: CReprOf<V> + CDrop, V> CReprOf<Vec<V>> for CArray<U> {
     fn c_repr_of(input: Vec<V>) -> Result<Self, Error> {
         let input_size = input.len();
         Ok(
@@ -119,8 +119,8 @@ impl<U: CReprOf<V>, V> CReprOf<Vec<V>> for CArray<U> {
     }
 }
 
-impl<T> Drop for CArray<T> {
-    fn drop(&mut self) {
+impl<T> CDrop for CArray<T> {
+    fn do_drop(&mut self) {
         let _ = unsafe {
             Box::from_raw(std::slice::from_raw_parts_mut(
                 self.data_ptr as *mut T,

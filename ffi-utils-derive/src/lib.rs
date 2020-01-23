@@ -31,7 +31,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
                     }
                 )
             } else {
-                quote!(#field_name: #field_type ::c_repr_of(input.#field_name)?)
+                quote!(#field_name: #field_type::c_repr_of(input.#field_name)?)
             }
         })
         .collect::<Vec<_>>();
@@ -58,7 +58,9 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
                     # ( # c_repr_of_fields, )*
                 })
             }
+        }
 
+        impl CDrop for # struct_name {
             fn do_drop(&mut self) {
                 # ( #do_drop_fields );*
             }
