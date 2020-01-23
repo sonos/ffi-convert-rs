@@ -129,3 +129,9 @@ impl<T> CDrop for CArray<T> {
         };
     }
 }
+
+impl<T> Drop for CArray<T> {
+    fn drop(&mut self) {
+        self.do_drop()
+    }
+}
