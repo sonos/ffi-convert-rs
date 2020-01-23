@@ -6,7 +6,7 @@ use syn;
 
 use quote::quote;
 
-#[proc_macro_derive(CReprOf, attributes(target_type, nullable, no_drop_impl))]
+#[proc_macro_derive(CReprOf, attributes(target_type, nullable, no_drop_impl, string))]
 pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_creprof_macro(&ast)
@@ -21,7 +21,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
 
     let c_repr_of_fields = fields
         .iter()
-        .map(|(field_name, field_type, is_nullable_field, is_string_field)| {
+        .map(|(field_name, field_type, is_nullable_field, _is_string_field)| {
             if *is_nullable_field {
                 quote!(
                     #field_name: if let Some(value) = input.#field_name {
@@ -114,7 +114,7 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
 
     let fields = parse_struct_fields(&input.data)
         .iter()
-        .map(|(field_name, _, is_nullable, is_string_field)| {
+        .map(|(field_name, _, is_nullable, _is_string_field)| {
             match is_nullable {
                 true =>
                     quote!(
