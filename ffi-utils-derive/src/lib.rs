@@ -21,7 +21,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
 
     let c_repr_of_fields = fields
         .iter()
-        .map(|(field_name, field_type, is_nullable_field)| {
+        .map(|(field_name, field_type, is_nullable_field, is_string_field)| {
             if *is_nullable_field {
                 quote!(
                     #field_name: if let Some(value) = input.#field_name {
@@ -38,15 +38,28 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
 
     let do_drop_fields = fields
         .iter()
-        .map(|(field_name, field_type, is_nullable_field)| {
-            if *is_nullable_field {
-                quote!(
-                    if !self.#field_name.is_null() {
-                       self.#field_name.do_drop()
-                    }
-                )
-            } else {
-                quote!(self.# field_name.do_drop())
+        .map(|(field_name, field_type, is_nullable_field, is_string_field)| {
+            match (*is_nullable_field, *is_string_field) {
+                (false, false) => {
+                    quote!( self.# field_name.do_drop() )
+                }
+                (false, true) => {
+                    quote!( take_back_c_string!(self.#field_name) )
+                }
+                (true, false) => {
+                    quote!(
+                        if !self.#field_name.is_null() {
+                           self.#field_name.do_drop()
+                        }
+                    )
+                }
+                (true, true) => {
+                    quote!(
+                        if !self.#field_name.is_null() {
+                           take_back_c_string!(self.#field_name)
+                        }
+                    )
+                }
             }
         });
 
@@ -75,16 +88,18 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
         }
     );
 
-    { if disable_drop_impl {
-        quote! {
+    {
+        if disable_drop_impl {
+            quote! {
             # c_repr_of_impl
         }
-    } else {
-        quote! {
+        } else {
+            quote! {
             # c_repr_of_impl
             # drop_impl
         }
-    }}.into()
+        }
+    }.into()
 }
 
 #[proc_macro_derive(AsRust, attributes(target_type, nullable))]
@@ -99,7 +114,7 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
 
     let fields = parse_struct_fields(&input.data)
         .iter()
-        .map(|(field_name, _, is_nullable)| {
+        .map(|(field_name, _, is_nullable, is_string_field)| {
             match is_nullable {
                 true =>
                     quote!(
@@ -147,22 +162,26 @@ fn parse_no_drop_impl_flag(attrs: &Vec<syn::Attribute>) -> bool {
         .is_some()
 }
 
-fn parse_struct_fields(data: &syn::Data) -> Vec<(&syn::Ident, proc_macro2::TokenStream, bool)> {
+fn parse_struct_fields(data: &syn::Data) -> Vec<(&syn::Ident, proc_macro2::TokenStream, bool, bool)> {
     match &data {
         syn::Data::Struct(data_struct) =>
             data_struct.fields
                 .iter()
                 .map(parse_field)
-                .collect::<Vec<(&syn::Ident, proc_macro2::TokenStream, bool)>>(),
+                .collect::<Vec<(&syn::Ident, proc_macro2::TokenStream, bool, bool)>>(),
         _ => panic!("CReprOf / AsRust can only be derived for structs"),
     }
 }
 
-fn parse_field(field: &syn::Field) -> (&syn::Ident, proc_macro2::TokenStream, bool) {
+fn parse_field(field: &syn::Field) -> (&syn::Ident, proc_macro2::TokenStream, bool, bool) {
     let field_name = field.ident.as_ref().expect("Field should have an ident");
 
-    let is_nullable = field.attrs.iter().find(|attr| {
+    let is_nullable_field = field.attrs.iter().find(|attr| {
         attr.path.get_ident().map(|it| it.to_string()) == Some("nullable".into())
+    }).is_some();
+
+    let is_string_field = field.attrs.iter().find(|attr| {
+        attr.path.get_ident().map(|it| it.to_string()) == Some("string".into())
     }).is_some();
 
     let field_type = match &field.ty {
@@ -171,12 +190,12 @@ fn parse_field(field: &syn::Field) -> (&syn::Ident, proc_macro2::TokenStream, bo
                 syn::Type::Path(path_t) => quote!(ffi_utils::RawPointerTo::< #path_t >),
                 _ => panic!("Pointer type is not supported") // TODO : is this the correct behaviour ???? What if we have pointer of pointer ???
             }
-        },
+        }
         syn::Type::Path(path_t) => generic_path_to_concrete_type_path(&path_t.path),
-        _ => { panic!("Field type is not supported") },
+        _ => { panic!("Field type is not supported") }
     };
 
-    (field_name, field_type, is_nullable)
+    (field_name, field_type, is_nullable_field, is_string_field)
 }
 
 fn generic_path_to_concrete_type_path(path: &syn::Path) -> proc_macro2::TokenStream {

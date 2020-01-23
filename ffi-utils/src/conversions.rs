@@ -171,7 +171,7 @@ pub trait CReprOf<T>: Sized + CDrop {
 /// Trait showing that the C-like struct implementing it can free up its part of memory that are not
 /// managed by Rust.
 pub trait CDrop {
-    fn do_drop(&mut self) { }
+    fn do_drop(&mut self) {}
 }
 
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
@@ -280,16 +280,26 @@ impl RawBorrow<libc::c_char> for std::ffi::CStr {
 
 
 impl CDrop for usize {}
+
 impl CDrop for u8 {}
+
 impl CDrop for i16 {}
+
 impl CDrop for u16 {}
+
 impl CDrop for i32 {}
+
 impl CDrop for u32 {}
+
 impl CDrop for i64 {}
+
 impl CDrop for u64 {}
+
 impl CDrop for f32 {}
+
 impl CDrop for f64 {}
-impl CDrop for std::ffi::CString { }
+
+impl CDrop for std::ffi::CString {}
 
 impl_c_repr_of_for!(usize);
 impl_c_repr_of_for!(i16);
@@ -331,12 +341,6 @@ impl<U: CReprOf<V> + CDrop, V> CReprOf<V> for RawPointerTo<U> {
         Ok(U::c_repr_of(input)?.into_raw_pointer())
     }
 }
-
-/*impl CDrop for RawPointerTo<libc::c_char> {
-    fn do_drop(&mut self) {
-        take_back_c_string!(*self)
-    }
-}*/
 
 impl CReprOf<String> for RawPointerTo<libc::c_char> {
     fn c_repr_of(input: String) -> Result<Self, Error> {
