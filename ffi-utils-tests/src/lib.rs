@@ -15,9 +15,9 @@ macro_rules! generate_round_trip_rust_c_rust {
 }
 
 pub fn round_trip_test_rust_c_rust<T, U>(value: U) -> Fallible<()>
-where
-    T: AsRust<U> + CReprOf<U>,
-    U: Clone + PartialEq,
+    where
+        T: AsRust<U> + CReprOf<U>,
+        U: Clone + PartialEq,
 {
     let value2 = value.clone();
     let intermediate: T = T::c_repr_of(value2)?;
@@ -61,7 +61,7 @@ pub struct CPancake {
     toppings: *const CArray<CTopping>,
     #[nullable]
     layers: *const CArray<CLayer>,
-    is_delicious: u8
+    is_delicious: u8,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -91,7 +91,7 @@ pub struct CTopping {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Layer {
     pub number: i32,
-    pub subtitle: Option<String>
+    pub subtitle: Option<String>,
 }
 
 #[repr(C)]

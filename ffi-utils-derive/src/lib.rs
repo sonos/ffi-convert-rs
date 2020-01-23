@@ -38,7 +38,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
 
     let do_drop_fields = fields
         .iter()
-        .map(|(field_name, field_type, is_nullable_field, is_string_field)| {
+        .map(|(field_name, _field_type, is_nullable_field, is_string_field)| {
             match (*is_nullable_field, *is_string_field) {
                 (false, false) => {
                     quote!( self.# field_name.do_drop() )

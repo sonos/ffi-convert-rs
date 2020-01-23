@@ -113,7 +113,7 @@ impl<U: CReprOf<V> + CDrop, V> CReprOf<Vec<V>> for CArray<U> {
                 } else {
                     null() as *const U
                 },
-                size: input_size
+                size: input_size,
             }
         )
     }
