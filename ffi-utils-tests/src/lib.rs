@@ -47,8 +47,10 @@ pub struct Pancake {
 #[derive(CReprOf, AsRust)]
 #[target_type(Pancake)]
 pub struct CPancake {
+    #[string]
     name: *const libc::c_char,
     #[nullable]
+    #[string]
     description: *const libc::c_char,
     start: f32,
     #[nullable]
@@ -98,6 +100,7 @@ pub struct Layer {
 pub struct CLayer {
     number: i32,
     #[nullable]
+    #[string]
     subtitle: *const libc::c_char,
 }
 
