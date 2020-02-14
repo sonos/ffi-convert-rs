@@ -74,8 +74,9 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
         }
 
         impl CDrop for # struct_name {
-            fn do_drop(&mut self) {
-                # ( #do_drop_fields );*
+            fn do_drop(&mut self) -> Result<(), ffi_utils::Error> {
+                # ( #do_drop_fields; )*
+                Ok(())
             }
         }
     );
@@ -83,7 +84,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     let drop_impl = quote!(
         impl Drop for # struct_name {
             fn drop(&mut self) {
-                self.do_drop();
+                let _ = self.do_drop();
             }
         }
     );
