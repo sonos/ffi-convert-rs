@@ -64,16 +64,17 @@ impl CReprOf<Vec<String>> for CStringArray {
 }
 
 impl CDrop for CStringArray {
-    fn do_drop(&mut self) {
+    fn do_drop(&mut self) -> Result<(), Error> {
         let _ = unsafe {
             let y = Box::from_raw(std::slice::from_raw_parts_mut(
                 self.data as *mut *mut libc::c_char,
                 self.size as usize,
             ));
             for p in y.into_iter() {
-                let _ = CString::from_raw_pointer(*p); // let's not panic if we fail here
+                let _ = CString::from_raw_pointer(*p)?; // let's not panic if we fail here
             }
         };
+        Ok(())
     }
 }
 
@@ -120,18 +121,19 @@ impl<U: CReprOf<V> + CDrop, V> CReprOf<Vec<V>> for CArray<U> {
 }
 
 impl<T> CDrop for CArray<T> {
-    fn do_drop(&mut self) {
+    fn do_drop(&mut self) -> Result<(), Error> {
         let _ = unsafe {
             Box::from_raw(std::slice::from_raw_parts_mut(
                 self.data_ptr as *mut T,
                 self.size,
             ))
         };
+        Ok(())
     }
 }
 
 impl<T> Drop for CArray<T> {
     fn drop(&mut self) {
-        self.do_drop()
+        let _ = self.do_drop();
     }
 }

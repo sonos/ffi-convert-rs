@@ -171,7 +171,7 @@ pub trait CReprOf<T>: Sized + CDrop {
 /// Trait showing that the C-like struct implementing it can free up its part of memory that are not
 /// managed by Rust.
 pub trait CDrop {
-    fn do_drop(&mut self) {}
+    fn do_drop(&mut self) -> Result<(), Error> { Ok(()) }
 }
 
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
