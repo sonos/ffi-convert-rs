@@ -21,47 +21,69 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
 
     let c_repr_of_fields = fields
         .iter()
-        .map(|(field_name, field_type, is_nullable_field, _is_string_field)| {
-            if *is_nullable_field {
+        .map(|(_field_name, field_type, _is_nullable_field, is_string_field, is_ptr_field, levels_of_indirection)| {
+            let mut conversion = if *is_string_field {
                 quote!(
-                    #field_name: if let Some(value) = input.#field_name {
-                        #field_type::c_repr_of(value)?
+                    std::ffi::CString::c_repr_of(field)?
+                )
+            } else {
+                quote!(
+                    #field_type::c_repr_of(field)?
+                )
+            };
+
+            if *is_ptr_field {
+                for _ in 0..*levels_of_indirection {
+                    conversion = quote!(#conversion.into_raw_pointer())
+                }
+            }
+
+            (_field_name, field_type, _is_nullable_field, is_string_field, conversion)
+        })
+        .map(|(field_name, field_type, is_nullable_field, _is_string_field, conversion)| {
+            let conversion_ = if *is_nullable_field {
+                quote!(
+                    #field_name: if let Some(field) = input.#field_name {
+                        #conversion
                     } else {
                         std::ptr::null() as _
                     }
                 )
             } else {
-                quote!(#field_name: #field_type::c_repr_of(input.#field_name)?)
-            }
+                quote!(#field_name: { let field = input.#field_name ; #conversion })
+            };
+            (field_name, field_type, is_nullable_field, _is_string_field, conversion_)
+        })
+        .map(|(_, _, _, _, conversion)| {
+            conversion
         })
         .collect::<Vec<_>>();
 
     let do_drop_fields = fields
         .iter()
-        .map(|(field_name, _field_type, is_nullable_field, is_string_field)| {
-            match (*is_nullable_field, *is_string_field) {
-                (false, false) => {
-                    quote!( self.# field_name.do_drop() )
+        .map(|(field_name, field_type, is_nullable_field, is_string_field, is_ptr_field, _)| {
+            let drop_field = if *is_string_field {
+                quote!( take_back_c_string!(self.#field_name) )
+            } else {
+                if *is_ptr_field {
+                    quote!( unsafe { #field_type::drop_raw_pointer(self.#field_name) }? )
+                } else {
+                    quote!( self.# field_name.do_drop()? )
                 }
-                (false, true) => {
-                    quote!( take_back_c_string!(self.#field_name) )
-                }
-                (true, false) => {
-                    quote!(
+            };
+            (field_name, field_type, is_nullable_field, is_string_field, is_ptr_field, drop_field)
+        })
+        .map(|(field_name, _field_type, is_nullable_field, _is_string_field, _is_ptr_field, drop_quote)| {
+            let conversion = if *is_nullable_field {
+                quote!(
                         if !self.#field_name.is_null() {
-                           self.#field_name.do_drop()
+                           # drop_quote
                         }
                     )
-                }
-                (true, true) => {
-                    quote!(
-                        if !self.#field_name.is_null() {
-                           take_back_c_string!(self.#field_name)
-                        }
-                    )
-                }
-            }
-        });
+                } else { drop_quote };
+            conversion
+        })
+        .collect::<Vec<_>>();
 
     let c_repr_of_impl = quote!(
         impl CReprOf<# target_type> for # struct_name {
@@ -115,19 +137,38 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
 
     let fields = parse_struct_fields(&input.data)
         .iter()
-        .map(|(field_name, _, is_nullable, _is_string_field)| {
-            match is_nullable {
-                true =>
-                    quote!(
-                        #field_name: if !self.#field_name.is_null() {
-                            Some(self.#field_name.as_rust()?)
-                        } else {
-                            None
+        .map(|(field_name, field_type, _is_nullable_field, is_string_field, is_ptr_field, levels_of_indirection)| {
+            let conversion = if *is_string_field {
+                quote!( create_rust_string_from!(self.#field_name) )
+            } else {
+                if *is_ptr_field {
+                    quote!( {
+                            let ref_to_struct = unsafe { #field_type::raw_borrow(self.#field_name)? };
+                            let converted_struct = ref_to_struct.as_rust()?;
+                            converted_struct
                         }
-                    ),
-                false =>
-                    quote!(#field_name : self.#field_name.as_rust()?)
-            }
+                    )
+                } else {
+                    quote!(self.#field_name.as_rust()?)
+                }
+            };
+            (field_name, field_type, _is_nullable_field, is_string_field, is_ptr_field, levels_of_indirection, conversion)
+        })
+        .map(|(field_name, _field_type, is_nullable_field, _is_string_field, _is_ptr_field, _, conversion)| {
+            let conversion = if *is_nullable_field {
+                quote!(
+                    #field_name: if !self.#field_name.is_null() {
+                        Some(#conversion)
+                    } else {
+                        None
+                    }
+                )
+            } else {
+                quote!(
+                    #field_name: #conversion
+                )
+            };
+            conversion
         })
         .collect::<Vec<_>>();
 
@@ -163,40 +204,84 @@ fn parse_no_drop_impl_flag(attrs: &Vec<syn::Attribute>) -> bool {
         .is_some()
 }
 
-fn parse_struct_fields(data: &syn::Data) -> Vec<(&syn::Ident, proc_macro2::TokenStream, bool, bool)> {
+fn parse_struct_fields(data: &syn::Data) -> Vec<(&syn::Ident, proc_macro2::TokenStream, bool, bool, bool, u32)> {
     match &data {
         syn::Data::Struct(data_struct) =>
             data_struct.fields
                 .iter()
                 .map(parse_field)
-                .collect::<Vec<(&syn::Ident, proc_macro2::TokenStream, bool, bool)>>(),
+                .collect::<Vec<(&syn::Ident, proc_macro2::TokenStream, bool, bool, bool, u32)>>(),
         _ => panic!("CReprOf / AsRust can only be derived for structs"),
     }
 }
 
-fn parse_field(field: &syn::Field) -> (&syn::Ident, proc_macro2::TokenStream, bool, bool) {
+/// Parses a field of a "C-like" Rust struct into a tuple of :
+/// - An identifier
+/// - the type of this field
+/// - whether this field has the nullable annotation
+/// - whether this field is of type libc::c_char
+/// - whether this field is of pointer type
+/// - If the field is a pointer field, the number of pointer indirections
+///
+/// # Examples
+///
+/// If we derive the `CReprOf` or `AsRust` trait on this given struct :
+/// ```
+/// struct RStruct {
+///     field1: u32
+/// }
+///
+/// #[derive(CReprOf, AsRust)]
+/// #[target_type(RStruct)]
+/// struct CStruct {
+///     #[nullable]
+///     field1: *const u32
+/// }
+/// ```
+///
+/// The field `field1` would then be parsed as the following tuple : `(field1, u32, true, false, true, 1)`
+fn parse_field(field: &syn::Field) -> (&syn::Ident, proc_macro2::TokenStream, bool, bool, bool, u32) {
     let field_name = field.ident.as_ref().expect("Field should have an ident");
+
+    let mut inner_field_type : syn::Type = field.ty.clone();
+    let mut levels_of_indirection : u32 = 0;
+
+    while let syn::Type::Ptr(ptr_t) = inner_field_type {
+        inner_field_type = *ptr_t.elem;
+        levels_of_indirection += 1;
+    }
+
+    let field_type = match inner_field_type {
+        syn::Type::Path(path_t) => generic_path_to_concrete_type_path(&path_t.path),
+        _ => { panic!("Field type used in this struct is not supported by the proc macro") }
+    };
 
     let is_nullable_field = field.attrs.iter().find(|attr| {
         attr.path.get_ident().map(|it| it.to_string()) == Some("nullable".into())
     }).is_some();
 
-    let is_string_field = field.attrs.iter().find(|attr| {
-        attr.path.get_ident().map(|it| it.to_string()) == Some("string".into())
-    }).is_some();
-
-    let field_type = match &field.ty {
+    let is_string_field = match &field.ty {
         syn::Type::Ptr(ptr_t) => {
             match &*ptr_t.elem {
-                syn::Type::Path(path_t) => quote!(ffi_utils::RawPointerTo::< #path_t >),
-                _ => panic!("Pointer type is not supported") // TODO : is this the correct behaviour ???? What if we have pointer of pointer ???
+                syn::Type::Path(path_t) => { // We are trying to detect the c_char identifier in the last segment
+                    if let Some(segment) = path_t.path.segments.last() {
+                        &segment.ident.to_string() == "c_char"
+                    } else {
+                        false
+                    }
+                },
+                _ => false
             }
-        }
-        syn::Type::Path(path_t) => generic_path_to_concrete_type_path(&path_t.path),
-        _ => { panic!("Field type is not supported") }
+        },
+        _ => false
     };
 
-    (field_name, field_type, is_nullable_field, is_string_field)
+    let is_ptr_field = match &field.ty {
+        syn::Type::Ptr(_) => true,
+        _ => false
+    };
+
+    (field_name, field_type, is_nullable_field, is_string_field, is_ptr_field, levels_of_indirection)
 }
 
 fn generic_path_to_concrete_type_path(path: &syn::Path) -> proc_macro2::TokenStream {

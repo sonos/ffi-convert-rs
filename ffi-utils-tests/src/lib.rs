@@ -64,6 +64,7 @@ pub struct CPancake {
     is_delicious: u8,
 }
 
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Sauce {
     pub volume: f32,
@@ -100,7 +101,6 @@ pub struct Layer {
 pub struct CLayer {
     number: i32,
     #[nullable]
-    #[string]
     subtitle: *const libc::c_char,
 }
 

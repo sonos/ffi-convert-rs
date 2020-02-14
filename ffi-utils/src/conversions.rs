@@ -327,27 +327,6 @@ impl CReprOf<String> for std::ffi::CString {
     }
 }
 
-pub type RawPointerTo<T> = *const T;
-
-
-impl<U> CDrop for RawPointerTo<U> {
-    fn do_drop(&mut self) {
-        let _ = unsafe { Box::<U>::from_raw(*self as *mut U) };
-    }
-}
-
-impl<U: CReprOf<V> + CDrop, V> CReprOf<V> for RawPointerTo<U> {
-    fn c_repr_of(input: V) -> Result<Self, Error> {
-        Ok(U::c_repr_of(input)?.into_raw_pointer())
-    }
-}
-
-impl CReprOf<String> for RawPointerTo<libc::c_char> {
-    fn c_repr_of(input: String) -> Result<Self, Error> {
-        convert_to_c_string_result!(input)
-    }
-}
-
 impl_as_rust_for!(usize);
 impl_as_rust_for!(i16);
 impl_as_rust_for!(u16);
@@ -369,20 +348,5 @@ impl AsRust<bool> for u8 {
 impl AsRust<String> for std::ffi::CStr {
     fn as_rust(&self) -> Result<String, Error> {
         self.to_str().map(|s| s.to_owned()).map_err(|e| e.into())
-    }
-}
-
-impl<U: AsRust<V>, V> AsRust<V> for RawPointerTo<U> {
-    fn as_rust(&self) -> Result<V, Error> {
-        let boxed_struct = unsafe { Box::from_raw(*self as *mut U) }; // We take back the ownership of the struct we point to.
-        let converted_struct = boxed_struct.as_rust();
-        Box::into_raw(boxed_struct); // We get back the original raw pointer
-        converted_struct
-    }
-}
-
-impl AsRust<String> for RawPointerTo<libc::c_char> {
-    fn as_rust(&self) -> Result<String, Error> {
-        Ok(create_rust_string_from!(*self))
     }
 }
