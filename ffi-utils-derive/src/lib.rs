@@ -232,31 +232,6 @@ struct Field<'a> {
     levels_of_indirection: u32,
 }
 
-/// Parses a field of a "C-like" Rust struct into a tuple of :
-/// - An identifier
-/// - the type of this field
-/// - whether this field has the nullable annotation
-/// - whether this field is of type libc::c_char
-/// - whether this field is of pointer type
-/// - If the field is a pointer field, the number of pointer indirections
-///
-/// # Examples
-///
-/// If we derive the `CReprOf` or `AsRust` trait on this given struct :
-/// `
-/// struct RStruct {
-///     field1: u32
-/// }
-///
-/// #[derive(CReprOf, AsRust)]
-/// #[target_type(RStruct)]
-/// struct CStruct {
-///     #[nullable]
-///     field1: *const u32
-/// }
-/// `
-///
-/// The field `field1` would then be parsed as the following tuple : `(field1, u32, true, false, true, 1)`
 fn parse_field(field: &syn::Field) -> Field {
     let field_name = field.ident.as_ref().expect("Field should have an ident");
 
