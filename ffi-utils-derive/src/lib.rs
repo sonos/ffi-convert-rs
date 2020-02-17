@@ -226,7 +226,7 @@ fn parse_struct_fields(data: &syn::Data) -> Vec<(&syn::Ident, proc_macro2::Token
 /// # Examples
 ///
 /// If we derive the `CReprOf` or `AsRust` trait on this given struct :
-/// ```
+/// `
 /// struct RStruct {
 ///     field1: u32
 /// }
@@ -237,7 +237,7 @@ fn parse_struct_fields(data: &syn::Data) -> Vec<(&syn::Ident, proc_macro2::Token
 ///     #[nullable]
 ///     field1: *const u32
 /// }
-/// ```
+/// `
 ///
 /// The field `field1` would then be parsed as the following tuple : `(field1, u32, true, false, true, 1)`
 fn parse_field(field: &syn::Field) -> (&syn::Ident, proc_macro2::TokenStream, bool, bool, bool, u32) {
