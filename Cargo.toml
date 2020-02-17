@@ -2,4 +2,6 @@
 members = [
     "failure-utils",
     "ffi-utils",
+    "ffi-utils-derive",
+    "ffi-utils-tests",
 ]

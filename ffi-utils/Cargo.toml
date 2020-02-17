@@ -8,6 +8,8 @@ authors = [
 edition = "2018"
 
 [dependencies]
-failure = "0.1"
+ffi-utils-derive = { path = "../ffi-utils-derive" }
 failure-utils = { path = "../failure-utils" }
+
+failure = "0.1"
 libc = "0.2"

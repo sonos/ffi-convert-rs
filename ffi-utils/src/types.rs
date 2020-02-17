@@ -1,4 +1,5 @@
 use std::ffi::CString;
+use std::ptr::null;
 
 use failure::{Error, ResultExt};
 
@@ -62,16 +63,77 @@ impl CReprOf<Vec<String>> for CStringArray {
     }
 }
 
-impl Drop for CStringArray {
-    fn drop(&mut self) {
+impl CDrop for CStringArray {
+    fn do_drop(&mut self) -> Result<(), Error> {
         let _ = unsafe {
             let y = Box::from_raw(std::slice::from_raw_parts_mut(
                 self.data as *mut *mut libc::c_char,
                 self.size as usize,
             ));
             for p in y.into_iter() {
-                let _ = CString::from_raw_pointer(*p); // let's not panic if we fail here
+                let _ = CString::from_raw_pointer(*p)?; // let's not panic if we fail here
             }
         };
+        Ok(())
+    }
+}
+
+#[repr(C)]
+pub struct CArray<T> {
+    data_ptr: *const T,
+    size: usize,
+}
+
+impl<U: AsRust<V>, V> AsRust<Vec<V>> for CArray<U> {
+    fn as_rust(&self) -> Result<Vec<V>, Error> {
+        let mut vec = Vec::with_capacity(self.size);
+        if self.size > 0 {
+            let values = unsafe { std::slice::from_raw_parts_mut(self.data_ptr as *mut U, self.size) };
+            for value in values {
+                vec.push(value.as_rust()?);
+            }
+        }
+        Ok(vec)
+    }
+}
+
+impl<U: CReprOf<V> + CDrop, V> CReprOf<Vec<V>> for CArray<U> {
+    fn c_repr_of(input: Vec<V>) -> Result<Self, Error> {
+        let input_size = input.len();
+        Ok(
+            Self {
+                data_ptr: if input_size > 0 {
+                    Box::into_raw(
+                        input
+                            .into_iter()
+                            .map(|item| U::c_repr_of(item))
+                            .collect::<Result<Vec<_>, Error>>()
+                            .expect("Could not convert to C representation")
+                            .into_boxed_slice()
+                    ) as *const U
+                } else {
+                    null() as *const U
+                },
+                size: input_size,
+            }
+        )
+    }
+}
+
+impl<T> CDrop for CArray<T> {
+    fn do_drop(&mut self) -> Result<(), Error> {
+        let _ = unsafe {
+            Box::from_raw(std::slice::from_raw_parts_mut(
+                self.data_ptr as *mut T,
+                self.size,
+            ))
+        };
+        Ok(())
+    }
+}
+
+impl<T> Drop for CArray<T> {
+    fn drop(&mut self) {
+        let _ = self.do_drop();
     }
 }

@@ -10,13 +10,17 @@ macro_rules! convert_to_c_string {
 #[macro_export]
 macro_rules! convert_to_c_string_result {
     ($string:expr) => {
-        std::ffi::CString::c_repr_of($string).map(|s| s.into_raw_pointer() as *const libc::c_char)
+        std::ffi::CString::c_repr_of($string).map(|s| {
+            use $crate::RawPointerConverter;
+            s.into_raw_pointer() as *const libc::c_char
+        })
     };
 }
 
 #[macro_export]
 macro_rules! convert_to_c_string_array {
     ($string_vec:expr) => {{
+        use $crate::RawPointerConverter;
         $crate::CStringArray::c_repr_of($string_vec)?.into_raw_pointer()
     }};
 }
@@ -46,6 +50,7 @@ macro_rules! convert_to_nullable_c_string {
 #[macro_export]
 macro_rules! take_back_c_string {
     ($pointer:expr) => {{
+        use $crate::RawPointerConverter;
         let _ = unsafe { std::ffi::CString::from_raw_pointer($pointer) };
     }};
 }
@@ -62,6 +67,7 @@ macro_rules! take_back_nullable_c_string {
 #[macro_export]
 macro_rules! take_back_c_string_array {
     ($pointer:expr) => {{
+        use $crate::RawPointerConverter;
         let _ = unsafe { $crate::CStringArray::from_raw_pointer($pointer) };
     }};
 }
@@ -98,9 +104,10 @@ macro_rules! create_optional_rust_string_from {
 
 #[macro_export]
 macro_rules! create_rust_vec_string_from {
-    ($pointer:expr) => {
+    ($pointer:expr) => {{
+        use $crate::RawBorrow;
         unsafe { $crate::CStringArray::raw_borrow($pointer) }?.as_rust()?
-    };
+    }};
 }
 
 #[macro_export]
@@ -113,6 +120,42 @@ macro_rules! create_optional_rust_vec_string_from {
     };
 }
 
+macro_rules! impl_c_repr_of_for {
+    ($typ:ty) => {
+        impl CReprOf<$typ> for $typ {
+            fn c_repr_of(input: $typ) -> Result<$typ, Error> {
+                Ok(input)
+            }
+        }
+    };
+
+    ($from_typ:ty, $to_typ:ty) => {
+        impl CReprOf<$from_typ> for $to_typ {
+            fn c_repr_of(input: $from_typ) -> Result<$to_typ, Error> {
+                Ok(input as $to_typ)
+            }
+        }
+    }
+}
+
+macro_rules! impl_as_rust_for {
+    ($typ:ty) => {
+        impl AsRust<$typ> for $typ {
+            fn as_rust(&self) -> Result<$typ, Error> {
+                Ok(*self)
+            }
+        }
+    };
+
+    ($from_typ:ty, $to_typ:ty) => {
+        impl AsRust<$to_typ> for $from_typ {
+            fn as_rust(&self) -> Result<$to_typ, Error> {
+                Ok(*self as $to_typ)
+            }
+        }
+    };
+}
+
 pub fn point_to_string(pointer: *mut *const libc::c_char, string: String) -> Result<(), Error> {
     unsafe { *pointer = std::ffi::CString::c_repr_of(string)?.into_raw_pointer() }
     Ok(())
@@ -120,8 +163,15 @@ pub fn point_to_string(pointer: *mut *const libc::c_char, string: String) -> Res
 
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
 /// type that can be created from an object of this type.
-pub trait CReprOf<T>: Sized {
+pub trait CReprOf<T>: Sized + CDrop {
     fn c_repr_of(input: T) -> Result<Self, Error>;
+}
+
+
+/// Trait showing that the C-like struct implementing it can free up its part of memory that are not
+/// managed by Rust.
+pub trait CDrop {
+    fn do_drop(&mut self) -> Result<(), Error> { Ok(()) }
 }
 
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
@@ -228,11 +278,70 @@ impl RawBorrow<libc::c_char> for std::ffi::CStr {
     }
 }
 
+
+impl CDrop for usize {}
+
+impl CDrop for u8 {}
+
+impl CDrop for i16 {}
+
+impl CDrop for u16 {}
+
+impl CDrop for i32 {}
+
+impl CDrop for u32 {}
+
+impl CDrop for i64 {}
+
+impl CDrop for u64 {}
+
+impl CDrop for f32 {}
+
+impl CDrop for f64 {}
+
+impl CDrop for std::ffi::CString {}
+
+impl_c_repr_of_for!(usize);
+impl_c_repr_of_for!(i16);
+impl_c_repr_of_for!(u16);
+impl_c_repr_of_for!(i32);
+impl_c_repr_of_for!(u32);
+impl_c_repr_of_for!(i64);
+impl_c_repr_of_for!(u64);
+impl_c_repr_of_for!(f32);
+impl_c_repr_of_for!(f64);
+
+impl_c_repr_of_for!(usize, i32);
+
+impl CReprOf<bool> for u8 {
+    fn c_repr_of(input: bool) -> Result<u8, Error> {
+        Ok(if input { 1 } else { 0 })
+    }
+}
+
 impl CReprOf<String> for std::ffi::CString {
     fn c_repr_of(input: String) -> Result<Self, Error> {
         std::ffi::CString::new(input)
             .context("Could not convert String to C Repr")
             .map_err(|e| e.into())
+    }
+}
+
+impl_as_rust_for!(usize);
+impl_as_rust_for!(i16);
+impl_as_rust_for!(u16);
+impl_as_rust_for!(i32);
+impl_as_rust_for!(u32);
+impl_as_rust_for!(i64);
+impl_as_rust_for!(u64);
+impl_as_rust_for!(f32);
+impl_as_rust_for!(f64);
+
+impl_as_rust_for!(i32, usize);
+
+impl AsRust<bool> for u8 {
+    fn as_rust(&self) -> Result<bool, Error> {
+        Ok((*self) != 0)
     }
 }
 
