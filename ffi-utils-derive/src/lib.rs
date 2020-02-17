@@ -22,29 +22,25 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     let c_repr_of_fields = fields
         .iter()
         .map(|field| {
-            let (
-                field_name, field_type, is_nullable_field, is_string_field, is_ptr_field, levels_of_indirection, ) = (
-                field.name,
-                &field.field_type,
-                field.is_nullable,
-                field.is_string,
-                field.is_pointer,
-                field.levels_of_indirection,
-            );
+            let Field {
+                name: field_name,
+                ref field_type,
+                ..
+            } = field;
 
-            let mut conversion = if is_string_field {
+            let mut conversion = if field.is_string {
                 quote!(std::ffi::CString::c_repr_of(field)?)
             } else {
                 quote!(#field_type::c_repr_of(field)?)
             };
 
-            if is_ptr_field {
-                for _ in 0..levels_of_indirection {
+            if field.is_pointer {
+                for _ in 0..field.levels_of_indirection {
                     conversion = quote!(#conversion.into_raw_pointer())
                 }
             }
 
-            conversion = if is_nullable_field {
+            conversion = if field.is_nullable {
                 quote!(
                     #field_name: if let Some(field) = input.#field_name {
                         #conversion
@@ -62,25 +58,23 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     let do_drop_fields = fields
         .iter()
         .map(|field| {
-            let (field_name, field_type, is_nullable_field, is_string_field, is_ptr_field) = (
-                field.name,
-                &field.field_type,
-                field.is_nullable,
-                field.is_string,
-                field.is_pointer,
-            );
+            let Field {
+                name: field_name,
+                ref field_type,
+                ..
+            } = field;
 
-            let drop_field = if is_string_field {
+            let drop_field = if field.is_string {
                 quote!(take_back_c_string!(self.#field_name))
             } else {
-                if is_ptr_field {
+                if field.is_pointer {
                     quote!( unsafe { #field_type::drop_raw_pointer(self.#field_name) }? )
                 } else {
                     quote!( self.# field_name.do_drop()? )
                 }
             };
 
-            let conversion = if is_nullable_field {
+            let conversion = if field.is_nullable {
                 quote!(
                     if !self.#field_name.is_null() {
                        # drop_field
@@ -131,7 +125,7 @@ fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
             }
         }
     }
-        .into()
+    .into()
 }
 
 #[proc_macro_derive(AsRust, attributes(target_type, nullable))]
@@ -147,17 +141,16 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
     let fields = parse_struct_fields(&input.data)
         .iter()
         .map(|field| {
-            let (field_name, field_type, is_nullable_field, is_string_field, is_ptr_field) = (
-                field.name,
-                &field.field_type,
-                field.is_nullable,
-                field.is_string,
-                field.is_pointer);
+            let Field {
+                name: field_name,
+                ref field_type,
+                ..
+            } = field;
 
-            let mut conversion = if is_string_field {
+            let mut conversion = if field.is_string {
                 quote!( create_rust_string_from!(self.#field_name) )
             } else {
-                if is_ptr_field {
+                if field.is_pointer {
                     quote!( {
                             let ref_to_struct = unsafe { #field_type::raw_borrow(self.#field_name)? };
                             let converted_struct = ref_to_struct.as_rust()?;
@@ -169,7 +162,7 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
                 }
             };
 
-            conversion = if is_nullable_field {
+            conversion = if field.is_nullable {
                 quote!(
                     #field_name: if !self.#field_name.is_null() {
                         Some(#conversion)
@@ -196,7 +189,7 @@ fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
             }
         }
     )
-        .into()
+    .into()
 }
 
 fn parse_target_type(attrs: &Vec<syn::Attribute>) -> syn::Path {
@@ -324,7 +317,7 @@ fn generic_path_to_concrete_type_path(path: &syn::Path) -> proc_macro2::TokenStr
     let segments = &path.segments;
     let ident = &last_segment.value().ident;
     let turbofished_type = if let syn::PathArguments::AngleBracketed(bracketed_args) =
-    &last_segment.value().arguments
+        &last_segment.value().arguments
     {
         quote!(#ident::#bracketed_args)
     } else {
