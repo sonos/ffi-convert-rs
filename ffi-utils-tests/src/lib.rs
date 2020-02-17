@@ -15,9 +15,9 @@ macro_rules! generate_round_trip_rust_c_rust {
 }
 
 pub fn round_trip_test_rust_c_rust<T, U>(value: U) -> Fallible<()>
-    where
-        T: AsRust<U> + CReprOf<U>,
-        U: Clone + PartialEq,
+where
+    T: AsRust<U> + CReprOf<U>,
+    U: Clone + PartialEq,
 {
     let value2 = value.clone();
     let intermediate: T = T::c_repr_of(value2)?;
@@ -63,7 +63,6 @@ pub struct CPancake {
     layers: *const CArray<CLayer>,
     is_delicious: u8,
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Sauce {
@@ -131,7 +130,7 @@ mod tests {
     generate_round_trip_rust_c_rust!(round_trip_layer, Layer, CLayer, {
         Layer {
             number: 1,
-            subtitle: Some(String::from("first layer"))
+            subtitle: Some(String::from("first layer")),
         }
     });
 
@@ -142,10 +141,13 @@ mod tests {
             start: 0.0,
             end: Some(2.0),
             dummy: Dummy { count: 2 },
-            sauce: Some(Sauce { volume: 32.23}),
+            sauce: Some(Sauce { volume: 32.23 }),
             toppings: vec![Topping { amount: 2 }, Topping { amount: 3 }],
-            layers: Some(vec![Layer { number: 1, subtitle: Some(String::from("first layer"))}]),
-            is_delicious: true
+            layers: Some(vec![Layer {
+                number: 1,
+                subtitle: Some(String::from("first layer")),
+            }]),
+            is_delicious: true,
         }
     });
 
@@ -159,7 +161,7 @@ mod tests {
             sauce: None,
             toppings: vec![],
             layers: Some(vec![]),
-            is_delicious: true
+            is_delicious: true,
         }
     });
 }
