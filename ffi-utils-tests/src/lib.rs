@@ -44,13 +44,11 @@ pub struct Pancake {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust)]
+#[derive(CReprOf, AsRust, CDrop)]
 #[target_type(Pancake)]
 pub struct CPancake {
-    #[string]
     name: *const libc::c_char,
     #[nullable]
-    #[string]
     description: *const libc::c_char,
     start: f32,
     #[nullable]
@@ -70,7 +68,7 @@ pub struct Sauce {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust)]
+#[derive(CReprOf, AsRust, CDrop)]
 #[target_type(Sauce)]
 pub struct CSauce {
     volume: f32,
@@ -82,7 +80,7 @@ pub struct Topping {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust)]
+#[derive(CReprOf, AsRust, CDrop)]
 #[target_type(Topping)]
 pub struct CTopping {
     amount: i32,
@@ -95,7 +93,7 @@ pub struct Layer {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust)]
+#[derive(CReprOf, AsRust, CDrop)]
 #[target_type(Layer)]
 pub struct CLayer {
     number: i32,
@@ -109,7 +107,7 @@ pub struct Dummy {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust)]
+#[derive(CReprOf, AsRust, CDrop)]
 #[target_type(Dummy)]
 pub struct CDummy {
     count: i32,
