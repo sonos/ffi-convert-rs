@@ -43,6 +43,7 @@ pub fn impl_cdrop_macro(input: &syn::DeriveInput) -> TokenStream {
     let c_drop_impl = quote!(
         impl CDrop for # struct_name {
             fn do_drop(&mut self) -> Result<(), ffi_utils::Error> {
+                use ffi_utils::RawPointerConverter;
                 # ( #do_drop_fields; )*
                 Ok(())
             }
