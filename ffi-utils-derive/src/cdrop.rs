@@ -18,7 +18,7 @@ pub fn impl_cdrop_macro(input: &syn::DeriveInput) -> TokenStream {
             } = field;
 
             let drop_field = if field.is_string {
-                quote!(take_back_c_string!(self.#field_name))
+                quote!(ffi_utils::take_back_c_string!(self.#field_name))
             } else {
                 if field.is_pointer {
                     quote!( unsafe { #field_type::drop_raw_pointer(self.#field_name) }? )

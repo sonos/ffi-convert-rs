@@ -16,7 +16,7 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
             } = field;
 
             let mut conversion = if field.is_string {
-                quote!( create_rust_string_from!(self.#field_name) )
+                quote!( ffi_utils::rust_string_from!(self.#field_name) )
             } else {
                 if field.is_pointer {
                     quote!( {
