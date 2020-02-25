@@ -135,7 +135,17 @@ macro_rules! impl_c_repr_of_for {
                 Ok(input as $to_typ)
             }
         }
-    }
+    };
+}
+
+macro_rules! impl_c_drop_for {
+    ($typ:ty) => {
+        impl CDrop for $typ {
+            fn do_drop(&mut self) -> Result<(), Error> {
+                Ok(())
+            }
+        }
+    };
 }
 
 macro_rules! impl_as_rust_for {
@@ -167,11 +177,10 @@ pub trait CReprOf<T>: Sized + CDrop {
     fn c_repr_of(input: T) -> Result<Self, Error>;
 }
 
-
 /// Trait showing that the C-like struct implementing it can free up its part of memory that are not
 /// managed by Rust.
 pub trait CDrop {
-    fn do_drop(&mut self) -> Result<(), Error> { Ok(()) }
+    fn do_drop(&mut self) -> Result<(), Error>;
 }
 
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
@@ -278,28 +287,17 @@ impl RawBorrow<libc::c_char> for std::ffi::CStr {
     }
 }
 
-
-impl CDrop for usize {}
-
-impl CDrop for u8 {}
-
-impl CDrop for i16 {}
-
-impl CDrop for u16 {}
-
-impl CDrop for i32 {}
-
-impl CDrop for u32 {}
-
-impl CDrop for i64 {}
-
-impl CDrop for u64 {}
-
-impl CDrop for f32 {}
-
-impl CDrop for f64 {}
-
-impl CDrop for std::ffi::CString {}
+impl_c_drop_for!(usize);
+impl_c_drop_for!(u8);
+impl_c_drop_for!(i16);
+impl_c_drop_for!(u16);
+impl_c_drop_for!(i32);
+impl_c_drop_for!(u32);
+impl_c_drop_for!(i64);
+impl_c_drop_for!(u64);
+impl_c_drop_for!(f32);
+impl_c_drop_for!(f64);
+impl_c_drop_for!(std::ffi::CString);
 
 impl_c_repr_of_for!(usize);
 impl_c_repr_of_for!(i16);
