@@ -9,7 +9,5 @@ edition = "2018"
 
 [dependencies]
 ffi-utils-derive = { path = "../ffi-utils-derive" }
-failure-utils = { path = "../failure-utils" }
-
 failure = "0.1"
 libc = "0.2"
