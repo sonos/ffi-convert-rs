@@ -66,7 +66,7 @@ pub struct CPizza {
 You can now pass the `CPizza` struct through your FFI boundary !
 
 ## Example
-BONUS if you can provide an example that you can copy/paste
+TODO : Provide an example that you can copy/paste
 
 ## Types representations mapping
 
@@ -111,6 +111,7 @@ The `AsRust` trait allows to create an idiomatic Rust struct from a C-compatible
 pub trait AsRust<T> {
     fn as_rust(&self) -> Result<T, Error>;
 }
+```
 
 This shows that the struct implementing it is a `repr(C)` compatible view of the parametrized
 type and that an instance of the parametrized type can be created form this struct.
