@@ -120,7 +120,7 @@ type and that an instance of the parametrized type can be created form this stru
 ## The CDrop trait
 
 A Trait showing that the `repr(C)` compatible view implementing it can free up its part of memory that are not
-managed by Rust.
+managed by Rust drop mechanism. 
 
 
 ## Caveats with derivation of CReprOf and AsRust traits
