@@ -54,7 +54,7 @@ Instead of manually writing the body of the conversion traits, we can derive the
 ```
 #[repr(C)]
 #[derive(CReprOf, AsRust, CDrop)]
-#[target_type(Pancake)]
+#[target_type(Pizza)]
 pub struct CPizza {
     pub name: *const libc::c_char,
     pub toppings: *const CArray<CTopping>,
@@ -81,7 +81,7 @@ See definitions below this table.
 
 ```
 typedef struct {
-  const CSlotValue *slot_values; // Pointer to the first slot value of the list
+  const T *values; // Pointer to the value of the list
   int32_t size; // Number of T values in the list
 } CArrayT;
 
@@ -120,7 +120,7 @@ type and that an instance of the parametrized type can be created form this stru
 ## The CDrop trait
 
 A Trait showing that the `repr(C)` compatible view implementing it can free up its part of memory that are not
-managed by Rust drop mechanism. 
+managed by Rust drop mechanism.
 
 
 ## Caveats with derivation of CReprOf and AsRust traits
