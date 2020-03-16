@@ -1,4 +1,6 @@
-# snips-utils-rs
+# ffi_convert
+
+**A collection of utilities (functions, traits, data structures, etc ...) to ease conversion between Rust and C-compatible data structures.**
 
 ## License
 

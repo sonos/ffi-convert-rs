@@ -1,5 +1,8 @@
 use failure::{ensure, format_err, Error, ResultExt};
 
+/// A macro to convert a `std::String` to a C-compatible representation : a raw pointer to libc::c_char.
+/// After calling this function, the caller is responsible for releasing the memory.
+/// The [`take_back_c_string!`] macro can be used for releasing the memory.
 #[macro_export]
 macro_rules! convert_to_c_string {
     ($string:expr) => {
@@ -7,6 +10,10 @@ macro_rules! convert_to_c_string {
     };
 }
 
+/// A macro to convert a `std::String` to a C-compatible representation a raw pointer to libc::c_char
+/// wrapped in a Result enum.
+/// After calling this function, the caller is responsible for releasing the memory.
+/// The [`take_back_c_string!`] macro can be used for releasing the memory.  
 #[macro_export]
 macro_rules! convert_to_c_string_result {
     ($string:expr) => {
@@ -17,6 +24,9 @@ macro_rules! convert_to_c_string_result {
     };
 }
 
+/// A macro to convert a `Vec<String>` to a C-compatible representation : a raw pointer to a CStringArray
+/// After calling this function, the caller is responsible for releasing the memory.
+/// The [`take_back_c_string_array!`] macro can be used for releasing the memory.
 #[macro_export]
 macro_rules! convert_to_c_string_array {
     ($string_vec:expr) => {{
@@ -25,6 +35,9 @@ macro_rules! convert_to_c_string_array {
     }};
 }
 
+/// A macro to convert a `Vec<String>` to a C-compatible representation : a raw pointer to a CStringArray
+/// After calling this function, the caller is responsible for releasing the memory.
+/// The [`take_back_c_string_array!`] macro can be used for releasing the memory.
 #[macro_export]
 macro_rules! convert_to_nullable_c_string_array {
     ($opt:expr) => {
@@ -36,6 +49,8 @@ macro_rules! convert_to_nullable_c_string_array {
     };
 }
 
+/// A macro to convert an `Option<String>` to a C-compatible representation : a raw pointer to libc::c_char if the Option enum is of variant Some,
+/// or a null pointer if the Option enum is of variant None.  
 #[macro_export]
 macro_rules! convert_to_nullable_c_string {
     ($opt:expr) => {
@@ -47,6 +62,7 @@ macro_rules! convert_to_nullable_c_string {
     };
 }
 
+/// Retakes the ownership of the memory pointed to by a raw pointer to a libc::c_char
 #[macro_export]
 macro_rules! take_back_c_string {
     ($pointer:expr) => {{
@@ -55,6 +71,7 @@ macro_rules! take_back_c_string {
     }};
 }
 
+/// Retakes the ownership of the memory pointed to by a raw pointer to a libc::c_char, checking first if the pointer is not null.
 #[macro_export]
 macro_rules! take_back_nullable_c_string {
     ($pointer:expr) => {
@@ -64,6 +81,7 @@ macro_rules! take_back_nullable_c_string {
     };
 }
 
+/// Retakes the ownership of the memory storing an array of C-compatible strings
 #[macro_export]
 macro_rules! take_back_c_string_array {
     ($pointer:expr) => {{
@@ -72,6 +90,7 @@ macro_rules! take_back_c_string_array {
     }};
 }
 
+/// Retakes the ownership of the memory storing an array of C-compatible strings, checking first if the provided pointer is not null.
 #[macro_export]
 macro_rules! take_back_nullable_c_string_array {
     ($pointer:expr) => {
@@ -81,6 +100,7 @@ macro_rules! take_back_nullable_c_string_array {
     };
 }
 
+/// Unsafely creates an owned string from a pointer to a nul-terminated array of bytes.
 #[macro_export]
 macro_rules! create_rust_string_from {
     ($pointer:expr) => {{
@@ -92,6 +112,7 @@ macro_rules! create_rust_string_from {
     }};
 }
 
+/// Unsafely creates an optional owned string from a pointer to a nul-terminated array of bytes.
 #[macro_export]
 macro_rules! create_optional_rust_string_from {
     ($pointer:expr) => {
@@ -102,6 +123,7 @@ macro_rules! create_optional_rust_string_from {
     };
 }
 
+/// Unsafely creates an array of owned string from a pointer to a CStringArray.
 #[macro_export]
 macro_rules! create_rust_vec_string_from {
     ($pointer:expr) => {{
@@ -110,6 +132,7 @@ macro_rules! create_rust_vec_string_from {
     }};
 }
 
+/// Unsafely creates an optional array of owned string from a pointer to a CStringArray.
 #[macro_export]
 macro_rules! create_optional_rust_vec_string_from {
     ($pointer:expr) => {
@@ -138,6 +161,7 @@ macro_rules! impl_c_repr_of_for {
     };
 }
 
+/// implements a noop implementation of the CDrop trait for a given type.
 macro_rules! impl_c_drop_for {
     ($typ:ty) => {
         impl CDrop for $typ {
@@ -210,15 +234,18 @@ pub trait RawPointerConverter<T>: Sized {
     }
 }
 
+/// Trait to create borrowed references to type T, from a raw pointer to a T
 pub trait RawBorrow<T> {
     unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, Error>;
 }
 
+/// Trait to create mutable borrowed references to type T, from a raw pointer to a T
 pub trait RawBorrowMut<T> {
     unsafe fn raw_borrow_mut<'a>(input: *mut T) -> Result<&'a mut Self, Error>;
 }
 
 /// TODO custom derive instead of generic impl, this would prevent CString from having 2 impls...
+/// Trait representing conversion operations from and to owned type T to a raw pointer to T
 impl<T> RawPointerConverter<T> for T {
     fn into_raw_pointer(self) -> *const T {
         Box::into_raw(Box::new(self)) as _
@@ -233,6 +260,7 @@ impl<T> RawPointerConverter<T> for T {
     }
 }
 
+/// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
 impl<T> RawBorrow<T> for T {
     unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, Error> {
         input
@@ -241,6 +269,7 @@ impl<T> RawBorrow<T> for T {
     }
 }
 
+/// Trait that allows obtaining a mutable borrowed reference to a type T from a raw pointer to T
 impl<T> RawBorrowMut<T> for T {
     unsafe fn raw_borrow_mut<'a>(input: *mut T) -> Result<&'a mut Self, Error> {
         input
