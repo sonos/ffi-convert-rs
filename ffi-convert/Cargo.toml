@@ -13,6 +13,6 @@ readme = "../README.md"
 keywords = ["ffi"]
 
 [dependencies]
-ffi-convert-derive = { path = "../ffi-convert-derive" }
+ffi-convert-derive = "0.1"
 failure = "0.1"
 libc = "0.2"

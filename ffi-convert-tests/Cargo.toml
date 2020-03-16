@@ -6,5 +6,5 @@ edition = "2018"
 
 [dependencies]
 failure = "0.1"
-ffi-convert = { path = "../ffi-convert" }
+ffi-convert = "0.1"
 libc = "0.2.66"
