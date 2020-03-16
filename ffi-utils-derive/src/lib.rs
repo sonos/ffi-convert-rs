@@ -1,3 +1,5 @@
+//! This crate provides ffi_convert derive macros for CReprOf, AsRust and CDrop traits.
+
 extern crate proc_macro;
 
 mod asrust;
