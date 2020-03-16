@@ -1,10 +1,10 @@
 [package]
-name = "ffi-utils-tests"
+name = "ffi-convert-tests"
 version = "0.1.0"
 authors = ["Deluvi <noe.baylac@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
 failure = "0.1"
-ffi-utils = { path = "../ffi-utils" }
+ffi-convert = { path = "../ffi-convert" }
 libc = "0.2.66"

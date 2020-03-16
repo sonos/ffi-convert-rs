@@ -25,7 +25,7 @@ pub enum SNIPS_RESULT {
 /// # Example
 ///
 /// ```
-/// use ffi_utils::{CReprOf, CStringArray};
+/// use ffi_convert::{CReprOf, CStringArray};
 /// let pizza_names = vec!["Diavola".to_string(), "Margarita".to_string(), "Regina".to_string()];
 /// let c_pizza_names = CStringArray::c_repr_of(pizza_names).expect("could not convert !");
 ///
@@ -95,7 +95,7 @@ impl CDrop for CStringArray {
 /// # Example
 ///
 /// ```
-/// use ffi_utils::{CReprOf, AsRust, CDrop, CArray};
+/// use ffi_convert::{CReprOf, AsRust, CDrop, CArray};
 /// use libc::c_char;
 ///
 /// pub struct PizzaTopping {

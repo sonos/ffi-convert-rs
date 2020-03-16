@@ -28,7 +28,7 @@
 //!
 //! We then create the C-compatible struct by [mapping](#types-representations-mapping) idiomatic Rust types to C-compatible types :
 //! ```
-//! # use ffi_utils::CArray;
+//! # use ffi_convert::CArray;
 //! # struct CTopping {};
 //! # struct CSauce {};
 //! #[repr(C)]
@@ -55,9 +55,9 @@
 //! Instead of manually writing the body of the conversion traits, we can derive them :
 //!
 //! ```
-//! # use ffi_utils::{CReprOf, AsRust, CDrop};
-//! # use ffi_utils::CArray;
-//! # use ffi_utils::RawBorrow;
+//! # use ffi_convert::{CReprOf, AsRust, CDrop};
+//! # use ffi_convert::CArray;
+//! # use ffi_convert::RawBorrow;
 //! # struct Sauce {};
 //! # #[derive(CReprOf, AsRust, CDrop)]
 //! # #[target_type(Sauce)]
@@ -134,7 +134,7 @@
 //! The `CReprOf` trait allows to create a C-compatible representation of the reciprocal idiomatic Rust struct by consuming the latter.
 
 //! ```
-//! # use ffi_utils::{Error, CDrop};
+//! # use ffi_convert::{Error, CDrop};
 //! pub trait CReprOf<T>: Sized + CDrop {
 //!     fn c_repr_of(input: T) -> Result<Self, Error>;
 //! }
@@ -151,7 +151,7 @@
 //! The `AsRust` trait allows to create an idiomatic Rust struct from a C-compatible struct :
 
 //! ```
-//! # use ffi_utils::{Error, CDrop};
+//! # use ffi_convert::{Error, CDrop};
 //! pub trait AsRust<T> {
 //!     fn as_rust(&self) -> Result<T, Error>;
 //! }
@@ -167,7 +167,7 @@
 
 //! ## Caveats with derivation of CReprOf and AsRust traits
 //!
-pub use ffi_utils_derive::*;
+pub use ffi_convert_derive::*;
 
 mod conversions;
 mod types;

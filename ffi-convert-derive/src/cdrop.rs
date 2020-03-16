@@ -18,7 +18,7 @@ pub fn impl_cdrop_macro(input: &syn::DeriveInput) -> TokenStream {
             } = field;
 
             let drop_field = if field.is_string {
-                quote!(ffi_utils::take_back_c_string!(self.#field_name))
+                quote!(ffi_convert::take_back_c_string!(self.#field_name))
             } else {
                 if field.is_pointer {
                     quote!( unsafe { #field_type::drop_raw_pointer(self.#field_name) }? )
@@ -42,8 +42,8 @@ pub fn impl_cdrop_macro(input: &syn::DeriveInput) -> TokenStream {
 
     let c_drop_impl = quote!(
         impl CDrop for # struct_name {
-            fn do_drop(&mut self) -> Result<(), ffi_utils::Error> {
-                use ffi_utils::RawPointerConverter;
+            fn do_drop(&mut self) -> Result<(), ffi_convert::Error> {
+                use ffi_convert::RawPointerConverter;
                 # ( #do_drop_fields; )*
                 Ok(())
             }
