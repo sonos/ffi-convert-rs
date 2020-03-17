@@ -10,22 +10,11 @@ use crate::conversions::*;
 use crate::convert_to_c_string_result;
 use crate::create_rust_string_from;
 
-/// Used as a return type for functions that can encounter errors
-#[repr(C)]
-#[derive(Debug)]
-#[allow(non_camel_case_types)]
-pub enum SNIPS_RESULT {
-    /// The function returned successfully
-    SNIPS_RESULT_OK = 0,
-    /// The function encountered an error, you can retrieve it using the dedicated function
-    SNIPS_RESULT_KO = 1,
-}
-
 /// A utility type to represent arrays of string
 /// # Example
 ///
 /// ```
-/// use ffi_utils::{CReprOf, CStringArray};
+/// use ffi_convert::{CReprOf, CStringArray};
 /// let pizza_names = vec!["Diavola".to_string(), "Margarita".to_string(), "Regina".to_string()];
 /// let c_pizza_names = CStringArray::c_repr_of(pizza_names).expect("could not convert !");
 ///
@@ -95,7 +84,7 @@ impl CDrop for CStringArray {
 /// # Example
 ///
 /// ```
-/// use ffi_utils::{CReprOf, AsRust, CDrop, CArray};
+/// use ffi_convert::{CReprOf, AsRust, CDrop, CArray};
 /// use libc::c_char;
 ///
 /// pub struct PizzaTopping {

@@ -1,5 +1,5 @@
 use failure::{bail, Fallible};
-use ffi_utils::*;
+use ffi_convert::*;
 
 #[macro_export]
 macro_rules! generate_round_trip_rust_c_rust {

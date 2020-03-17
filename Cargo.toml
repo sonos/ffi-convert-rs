@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "ffi-utils",
-    "ffi-utils-derive",
-    "ffi-utils-tests",
+    "ffi-convert",
+    "ffi-convert-derive",
+    "ffi-convert-tests",
 ]
