@@ -10,17 +10,6 @@ use crate::conversions::*;
 use crate::convert_to_c_string_result;
 use crate::create_rust_string_from;
 
-/// Used as a return type for functions that can encounter errors
-#[repr(C)]
-#[derive(Debug)]
-#[allow(non_camel_case_types)]
-pub enum SNIPS_RESULT {
-    /// The function returned successfully
-    SNIPS_RESULT_OK = 0,
-    /// The function encountered an error, you can retrieve it using the dedicated function
-    SNIPS_RESULT_KO = 1,
-}
-
 /// A utility type to represent arrays of string
 /// # Example
 ///
