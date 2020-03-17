@@ -1,7 +1,7 @@
 [package]
 name = "ffi-convert-derive"
 version = "0.1.0"
-authors = ["Snips <contact@snips.ai>"]
+authors = ["Sonos"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 description = "Macros implementations of CReprOf, AsRust, CDrop traits from ffi-convert"
