@@ -1,4 +1,6 @@
 # ffi_convert
+[![ffi-convert on crates.io](https://img.shields.io/crates/v/ffi-convert.svg)](https://crates.io/crates/ffi-convert)
+[![ffi-convert documentation](https://docs.rs/ffi-convert/badge.svg)](https://docs.rs/ffi-convert/)
 
 **A collection of utilities (functions, traits, data structures, etc ...) to ease conversion between Rust and C-compatible data structures.**
 
