@@ -19,12 +19,11 @@ pub fn impl_cdrop_macro(input: &syn::DeriveInput) -> TokenStream {
 
             let drop_field = if field.is_string {
                 quote!(ffi_convert::take_back_c_string!(self.#field_name))
+            } else if field.is_pointer {
+                quote!( unsafe { #field_type::drop_raw_pointer(self.#field_name) }? )
             } else {
-                if field.is_pointer {
-                    quote!( unsafe { #field_type::drop_raw_pointer(self.#field_name) }? )
-                } else {
-                    quote!( self.# field_name.do_drop()? )
-                }
+                // the other cases will be handled automatically by rust
+                quote!()
             };
 
             let conversion = if field.is_nullable {
