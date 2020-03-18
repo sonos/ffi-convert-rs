@@ -104,6 +104,7 @@ pub struct CLayer {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dummy {
     pub count: i32,
+    pub describe: String,
 }
 
 #[repr(C)]
@@ -111,6 +112,7 @@ pub struct Dummy {
 #[target_type(Dummy)]
 pub struct CDummy {
     count: i32,
+    describe: *const libc::c_char,
 }
 
 #[cfg(test)]
@@ -123,7 +125,12 @@ mod tests {
         Topping { amount: 2 }
     });
 
-    generate_round_trip_rust_c_rust!(round_trip_dummy, Dummy, CDummy, { Dummy { count: 2 } });
+    generate_round_trip_rust_c_rust!(round_trip_dummy, Dummy, CDummy, {
+        Dummy {
+            count: 2,
+            describe: "yo".to_string(),
+        }
+    });
 
     generate_round_trip_rust_c_rust!(round_trip_layer, Layer, CLayer, {
         Layer {
@@ -138,7 +145,10 @@ mod tests {
             description: Some("I'm delicious ! ".to_string()),
             start: 0.0,
             end: Some(2.0),
-            dummy: Dummy { count: 2 },
+            dummy: Dummy {
+                count: 2,
+                describe: "yo".to_string(),
+            },
             sauce: Some(Sauce { volume: 32.23 }),
             toppings: vec![Topping { amount: 2 }, Topping { amount: 3 }],
             layers: Some(vec![Layer {
@@ -155,7 +165,10 @@ mod tests {
             description: Some("I'm delicious ! ".to_string()),
             start: 0.0,
             end: None,
-            dummy: Dummy { count: 2 },
+            dummy: Dummy {
+                count: 2,
+                describe: "yo".to_string(),
+            },
             sauce: None,
             toppings: vec![],
             layers: Some(vec![]),
