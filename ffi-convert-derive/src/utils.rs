@@ -109,6 +109,49 @@ pub fn generic_path_to_concrete_type_path(path: &syn::Path) -> proc_macro2::Toke
     if segments.is_empty() {
         turbofished_type
     } else {
-        quote!(#segments::#turbofished_type)
+        quote!(#segments#turbofished_type)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use syn::Path;
+
+    #[test]
+    fn test_generic_path_to_concrete_type_path() {
+        let original_path = syn::parse_str::<Path>("std::module1::module2::Hello")
+            .expect("Could not parse str into syn::Path");
+        let transformed_path =
+            syn::parse2::<Path>(generic_path_to_concrete_type_path(&original_path))
+                .expect("could not parse tok stream into syn::Path");
+        assert_eq!(transformed_path, original_path);
+    }
+
+    #[test]
+    fn test_generic_path_to_concrete_type_path_with_type_param() {
+        // This tests checks that the following transformation happens :
+        //                                   generic_path_to_concrete_type_path
+        // "std::module1::module2::Vec<Hello>" ----------------------------> "std::module1::module2::Vec::<Hello>"
+
+        assert_eq!(
+            syn::parse_str::<Path>("std::module1::module2::Vec::<Hello>")
+                .expect("could not parse str into syn::Path"),
+            syn::parse2::<Path>(generic_path_to_concrete_type_path(
+                &syn::parse_str::<Path>("std::module1::module2::Vec<Hello>")
+                    .expect("could not parse str into syn::Path")
+            ))
+            .expect("could not parse token stream into syn::Path")
+        )
+    }
+
+    #[test]
+    fn test_generic_path_to_concrete_type_path_without_segments() {
+        let original_path =
+            syn::parse_str::<Path>("Hello").expect("Could not parse str into syn::Path");
+        let transformed_path =
+            syn::parse2::<Path>(generic_path_to_concrete_type_path(&original_path))
+                .expect("could not parse tok stream into syn::Path");
+        assert_eq!(transformed_path, original_path);
     }
 }
