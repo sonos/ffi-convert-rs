@@ -1,6 +1,6 @@
 [package]
 name = "ffi-convert-derive"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Sonos"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -15,8 +15,7 @@ proc-macro = true
 [dependencies]
 quote = "1.0.2"
 proc-macro2 = "1.0.6"
-syn = "1.0.16"
 
-[dev-dependencies.syn]
+[dependencies.syn]
 version = "1.0.16"
 features = ["extra-traits"]
