@@ -1,5 +1,3 @@
-use quote::quote;
-
 pub fn parse_target_type(attrs: &Vec<syn::Attribute>) -> syn::Path {
     let target_type_attribute = attrs
         .iter()
@@ -33,7 +31,8 @@ pub fn parse_struct_fields(data: &syn::Data) -> Vec<Field> {
 
 pub struct Field<'a> {
     pub name: &'a syn::Ident,
-    pub field_type: proc_macro2::TokenStream,
+    pub field_type: syn::TypePath,
+    pub type_params: Option<syn::AngleBracketedGenericArguments>,
     pub is_nullable: bool,
     pub is_string: bool,
     pub is_pointer: bool,
@@ -51,8 +50,8 @@ pub fn parse_field(field: &syn::Field) -> Field {
         levels_of_indirection += 1;
     }
 
-    let field_type = match inner_field_type {
-        syn::Type::Path(path_t) => generic_path_to_concrete_type_path(&path_t.path),
+    let (field_type, extracted_type_params) = match inner_field_type {
+        syn::Type::Path(type_path) => generic_path_to_concrete_type_path(type_path),
         _ => panic!("Field type used in this struct is not supported by the proc macro"),
     };
 
@@ -91,67 +90,159 @@ pub fn parse_field(field: &syn::Field) -> Field {
         is_string: is_string_field,
         is_pointer: is_ptr_field,
         levels_of_indirection,
+        type_params: extracted_type_params,
     }
 }
 
-pub fn generic_path_to_concrete_type_path(path: &syn::Path) -> proc_macro2::TokenStream {
-    let mut path = path.clone();
-    let last_segment = path.segments.pop().unwrap();
-    let segments = &path.segments;
-    let ident = &last_segment.value().ident;
-    let turbofished_type = if let syn::PathArguments::AngleBracketed(bracketed_args) =
-        &last_segment.value().arguments
-    {
-        quote!(#ident::#bracketed_args)
+/// A helper function that extracts type parameters from type definitions of fields.  
+///
+/// Some procedural macros need to extract type parameters from the definitions of a struct's fields.
+/// For instance, if a struct has a field, with the following type :
+///  `std::module1::module2::Vec<Hello>`, the goal of this function is to transform this in :
+/// `(std::module1::module2::Vec`, `Hello`)`
+///
+pub fn generic_path_to_concrete_type_path(
+    path: syn::TypePath,
+) -> (syn::TypePath, Option<syn::AngleBracketedGenericArguments>) {
+    let mut path_mut = path.clone();
+    let last_seg: Option<&mut syn::PathSegment> = path_mut.path.segments.last_mut();
+
+    if let Some(last_segment) = last_seg {
+        if let syn::PathArguments::AngleBracketed(ref bracketed_type_params) =
+            last_segment.arguments
+        {
+            let extracted_type_params = (*bracketed_type_params).clone();
+            last_segment.arguments = syn::PathArguments::None;
+            (path_mut, Some(extracted_type_params))
+        } else {
+            (path_mut, None)
+        }
     } else {
-        quote!(#ident)
-    };
-    if segments.is_empty() {
-        turbofished_type
-    } else {
-        quote!(#segments#turbofished_type)
+        panic!("The field with type : {:?} is invalid. No segments on the TypePath")
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use syn::Path;
+    use syn::TypePath;
 
     #[test]
-    fn test_generic_path_to_concrete_type_path() {
-        let original_path = syn::parse_str::<Path>("std::module1::module2::Hello")
-            .expect("Could not parse str into syn::Path");
-        let transformed_path =
-            syn::parse2::<Path>(generic_path_to_concrete_type_path(&original_path))
-                .expect("could not parse tok stream into syn::Path");
-        assert_eq!(transformed_path, original_path);
+    fn test_type_parameter_extraction() {
+        let type_path = syn::parse_str::<TypePath>("std::mod1::mod2::Foo<Bar>").unwrap();
+
+        let (transformed_type_path, extracted_type_param) =
+            generic_path_to_concrete_type_path(type_path);
+
+        assert_eq!(extracted_type_param.unwrap().args.len(), 1);
+        assert_eq!(
+            transformed_type_path,
+            syn::parse_str::<TypePath>("std::mod1::mod2::Foo").unwrap()
+        );
     }
 
     #[test]
-    fn test_generic_path_to_concrete_type_path_with_type_param() {
-        // This tests checks that the following transformation happens :
-        //                                   generic_path_to_concrete_type_path
-        // "std::module1::module2::Vec<Hello>" ----------------------------> "std::module1::module2::Vec::<Hello>"
+    fn test_type_parameters_extraction() {
+        let type_path = syn::parse_str::<TypePath>("std::mod1::mod2::Foo<Bar, Baz>").unwrap();
+
+        let (transformed_type_path, extracted_type_param) =
+            generic_path_to_concrete_type_path(type_path);
 
         assert_eq!(
-            syn::parse_str::<Path>("std::module1::module2::Vec::<Hello>")
-                .expect("could not parse str into syn::Path"),
-            syn::parse2::<Path>(generic_path_to_concrete_type_path(
-                &syn::parse_str::<Path>("std::module1::module2::Vec<Hello>")
-                    .expect("could not parse str into syn::Path")
-            ))
-            .expect("could not parse token stream into syn::Path")
+            transformed_type_path,
+            syn::parse_str::<TypePath>("std::mod1::mod2::Foo").unwrap()
+        );
+        assert_eq!(extracted_type_param.unwrap().args.len(), 2)
+    }
+
+    #[test]
+    fn test_type_parameter_extraction_works_without_params() {
+        let original_path = syn::parse_str::<TypePath>("std::module1::module2::Hello")
+            .expect("Could not parse str into syn::Path");
+        let (transformed_path, extracted_type_params) =
+            generic_path_to_concrete_type_path(original_path);
+
+        assert!(extracted_type_params.is_none());
+        assert_eq!(
+            transformed_path,
+            syn::parse_str::<TypePath>("std::module1::module2::Hello").unwrap()
         )
     }
 
     #[test]
-    fn test_generic_path_to_concrete_type_path_without_segments() {
-        let original_path =
-            syn::parse_str::<Path>("Hello").expect("Could not parse str into syn::Path");
-        let transformed_path =
-            syn::parse2::<Path>(generic_path_to_concrete_type_path(&original_path))
-                .expect("could not parse tok stream into syn::Path");
-        assert_eq!(transformed_path, original_path);
+    fn test_field_parsing_1() {
+        let fields = syn::parse_str::<syn::FieldsNamed>("{ field : *const mod1::CDummy }").unwrap();
+
+        let parsed_fields = fields.named.iter().map(parse_field).collect::<Vec<Field>>();
+
+        assert_eq!(parsed_fields[0].is_string, false);
+        assert_eq!(parsed_fields[0].is_pointer, true);
+        assert_eq!(parsed_fields[0].is_nullable, false);
+
+        assert_eq!(parsed_fields[0].field_type.path.segments.len(), 2);
+    }
+
+    #[test]
+    fn test_field_parsing_2() {
+        let fields = syn::parse_str::<syn::FieldsNamed>(
+            "{\
+                field1: *const mod1::CDummy, \
+                field2: *const CDummy\
+            }",
+        )
+        .unwrap();
+
+        let parsed_fields = fields
+            .named
+            .iter()
+            .map(|f| {
+                println!("f : {:?}", f);
+                f
+            })
+            .map(parse_field)
+            .collect::<Vec<Field>>();
+
+        assert_eq!(parsed_fields[0].is_pointer, true);
+        assert_eq!(parsed_fields[1].is_pointer, true);
+        assert_eq!(parsed_fields[0].is_string, false);
+        assert_eq!(parsed_fields[1].is_string, false);
+
+        let parsed_path_0 = parsed_fields[0].field_type.path.clone();
+        let parsed_path_1 = parsed_fields[1].field_type.path.clone();
+
+        assert_eq!(parsed_path_0.segments.len(), 2);
+        assert_eq!(parsed_path_1.segments.len(), 1);
+    }
+
+    #[test]
+    fn test_field_parsing_3() {
+        let fields = syn::parse_str::<syn::FieldsNamed>(
+            "{\
+                field1: *const mod1::CFoo<CBar>, \
+                field2: *const CFoo<CBar>\
+            }",
+        )
+        .unwrap();
+
+        let parsed_fields = fields
+            .named
+            .iter()
+            .map(|f| {
+                println!("f : {:?}", f);
+                f
+            })
+            .map(parse_field)
+            .collect::<Vec<Field>>();
+
+        assert_eq!(parsed_fields[0].is_pointer, true);
+        assert_eq!(parsed_fields[1].is_pointer, true);
+        assert_eq!(parsed_fields[0].is_string, false);
+        assert_eq!(parsed_fields[1].is_string, false);
+
+        let parsed_path_0 = parsed_fields[0].field_type.path.clone();
+        let parsed_path_1 = parsed_fields[1].field_type.path.clone();
+
+        assert_eq!(parsed_path_0.segments.len(), 2);
+        assert_eq!(parsed_path_1.segments.len(), 1);
     }
 }
