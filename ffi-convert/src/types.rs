@@ -105,8 +105,6 @@ impl CDrop for CStringArray {
 /// let ctoppings = CArray::<CPizzaTopping>::c_repr_of(toppings);
 ///
 /// ```
-///
-///
 #[repr(C)]
 pub struct CArray<T> {
     data_ptr: *const T,
@@ -180,7 +178,7 @@ impl<T> Drop for CArray<T> {
 ///     pub range: Range<i32>
 /// }
 ///
-/// #[derive(AsRust CDrop, CReprOf, Debug, PartialEq)]
+/// #[derive(AsRust, CDrop, CReprOf, Debug, PartialEq)]
 /// #[target_type(Foo)]
 /// pub struct CFoo {
 ///     pub range: CRange<i32>
@@ -205,10 +203,7 @@ impl<T> Drop for CArray<T> {
 ///
 /// let foo_converted = c_foo.as_rust().unwrap();
 /// assert_eq!(foo_converted, foo);
-///
 /// ```
-///
-///
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq)]
 pub struct CRange<T> {
@@ -216,7 +211,7 @@ pub struct CRange<T> {
     pub end: T,
 }
 
-impl<U: AsRust<V>, V> AsRust<Range<V>> for CRange<U> {
+impl<U: AsRust<V> + PartialOrd, V: PartialOrd> AsRust<Range<V>> for CRange<U> {
     fn as_rust(&self) -> Result<Range<V>, Error> {
         Ok(Range {
             start: self.start.as_rust()?,
@@ -225,7 +220,7 @@ impl<U: AsRust<V>, V> AsRust<Range<V>> for CRange<U> {
     }
 }
 
-impl<U: CReprOf<V> + CDrop, V> CReprOf<Range<V>> for CRange<U> {
+impl<U: CReprOf<V> + PartialOrd + CDrop, V: PartialOrd> CReprOf<Range<V>> for CRange<U> {
     fn c_repr_of(input: Range<V>) -> Result<Self, Error> {
         Ok(Self {
             start: U::c_repr_of(input.start)?,
