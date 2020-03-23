@@ -1,3 +1,4 @@
+use std::ops::Range;
 use failure::{bail, Fallible};
 use ffi_convert::*;
 
@@ -41,6 +42,7 @@ pub struct Pancake {
     pub toppings: Vec<Topping>,
     pub layers: Option<Vec<Layer>>,
     pub is_delicious: bool,
+    pub range: Range<usize>,
 }
 
 #[repr(C)]
@@ -60,6 +62,7 @@ pub struct CPancake {
     #[nullable]
     layers: *const CArray<CLayer>,
     is_delicious: u8,
+    pub range: CRange<i32>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -156,6 +159,10 @@ mod tests {
                 subtitle: Some(String::from("first layer")),
             }]),
             is_delicious: true,
+            range: Range {
+                start: 20,
+                end: 30,
+            }
         }
     });
 
@@ -173,6 +180,10 @@ mod tests {
             toppings: vec![],
             layers: Some(vec![]),
             is_delicious: true,
+            range: Range {
+                start: 50,
+                end: 100,
+            }
         }
     });
 }
