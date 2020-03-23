@@ -1,10 +1,10 @@
 [package]
 name = "ffi-convert-tests"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Sonos"]
 edition = "2018"
 
 [dependencies]
 failure = "0.1"
-ffi-convert = "0.1.2"
+ffi-convert = "0.2.0"
 libc = "0.2.66"
