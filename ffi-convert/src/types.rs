@@ -211,7 +211,7 @@ pub struct CRange<T> {
     pub end: T,
 }
 
-impl<U: AsRust<V> + PartialOrd, V: PartialOrd> AsRust<Range<V>> for CRange<U> {
+impl<U: AsRust<V>, V: PartialOrd + PartialEq> AsRust<Range<V>> for CRange<U> {
     fn as_rust(&self) -> Result<Range<V>, Error> {
         Ok(Range {
             start: self.start.as_rust()?,
@@ -220,7 +220,7 @@ impl<U: AsRust<V> + PartialOrd, V: PartialOrd> AsRust<Range<V>> for CRange<U> {
     }
 }
 
-impl<U: CReprOf<V> + PartialOrd + CDrop, V: PartialOrd> CReprOf<Range<V>> for CRange<U> {
+impl<U: CReprOf<V> + CDrop, V: PartialOrd + PartialEq> CReprOf<Range<V>> for CRange<U> {
     fn c_repr_of(input: Range<V>) -> Result<Self, Error> {
         Ok(Self {
             start: U::c_repr_of(input.start)?,
