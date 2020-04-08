@@ -25,7 +25,7 @@ pub fn asrust_derive(token_stream: TokenStream) -> TokenStream {
     impl_asrust_macro(&ast)
 }
 
-#[proc_macro_derive(CDrop, attributes(no_drop_impl))]
+#[proc_macro_derive(CDrop, attributes(no_drop_impl, nullable))]
 pub fn cdrop_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_cdrop_macro(&ast)
