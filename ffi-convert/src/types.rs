@@ -106,6 +106,7 @@ impl CDrop for CStringArray {
 ///
 /// ```
 #[repr(C)]
+#[derive(Debug)]
 pub struct CArray<T> {
     data_ptr: *const T,
     size: usize,
