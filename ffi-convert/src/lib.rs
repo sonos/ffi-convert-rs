@@ -1,7 +1,7 @@
 //! A collection of utilities (functions, traits, data structures, etc ...) to ease conversion between Rust and C-compatible data structures.
 //!
 //! Through two **conversion traits**, **`CReprOf`** and **`AsRust`**, this crate provides a framework to convert idiomatic Rust structs to C-compatible structs that can pass through an FFI boundary, and conversely.
-//! They ensure that the developper uses best practices when performing the conversion in both directions (ownership-wise).
+//! They ensure that the developer uses best practices when performing the conversion in both directions (ownership-wise).
 //!
 //! The crate also provides a collection of useful utility functions to perform conversions of types.
 //! It goes hand in hand with the `ffi-convert-derive` crate as it provides an **automatic derivation** of the `CReprOf` and `AsRust` trait.
@@ -14,7 +14,7 @@
 //! ## Example
 //!
 //! We want to be able to convert a **`Pizza`** Rust struct that has an idiomatic representation to a **`CPizza`** Rust struct that has a C-compatible representation in memory.
-//! We start by definining the fields of the `Pizza` struct :
+//! We start by defining the fields of the `Pizza` struct :
 //! ```
 //! # struct Topping {};
 //! # struct Sauce {};
