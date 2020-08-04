@@ -326,6 +326,7 @@ impl_c_drop_for!(i64);
 impl_c_drop_for!(u64);
 impl_c_drop_for!(f32);
 impl_c_drop_for!(f64);
+impl_c_drop_for!(bool);
 impl_c_drop_for!(std::ffi::CString);
 
 impl_c_repr_of_for!(usize);
@@ -337,6 +338,7 @@ impl_c_repr_of_for!(i64);
 impl_c_repr_of_for!(u64);
 impl_c_repr_of_for!(f32);
 impl_c_repr_of_for!(f64);
+impl_c_repr_of_for!(bool);
 
 impl_c_repr_of_for!(usize, i32);
 
@@ -363,6 +365,7 @@ impl_as_rust_for!(i64);
 impl_as_rust_for!(u64);
 impl_as_rust_for!(f32);
 impl_as_rust_for!(f64);
+impl_as_rust_for!(bool);
 
 impl_as_rust_for!(i32, usize);
 
