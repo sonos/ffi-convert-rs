@@ -21,7 +21,10 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
             }
 
             let mut conversion = if field.is_string {
-                quote!( ffi_convert::create_rust_string_from!(self.#field_name) )
+                quote!( {
+                    use ffi_convert::RawBorrow;
+                    unsafe { std::ffi::CStr::raw_borrow(self.#field_name) }?.as_rust()?
+                })
             } else {
                 if field.is_pointer {
                     quote!( {
@@ -54,8 +57,7 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
 
     quote!(
         impl AsRust<#target_type> for #struct_name {
-            fn as_rust(&self) -> Result<#target_type, ffi_convert::Error> {
-                use failure::ResultExt;
+            fn as_rust(&self) -> Result<#target_type, ffi_convert::AsRustError> {
                 Ok(#target_type {
                     #(#fields, )*
                 })

@@ -1,15 +1,11 @@
 //! This module contains definitions of utility types that implement the [`CReprOf`], [`AsRust`], and [`CDrop`] traits.
 //!
 
-use std::ffi::CString;
-use std::ptr::null;
+use std::ffi::{CStr, CString};
 use std::ops::Range;
-
-use failure::{Error, ResultExt};
+use std::ptr::null;
 
 use crate::conversions::*;
-use crate::convert_to_c_string_result;
-use crate::create_rust_string_from;
 
 /// A utility type to represent arrays of string
 /// # Example
@@ -33,7 +29,7 @@ pub struct CStringArray {
 unsafe impl Sync for CStringArray {}
 
 impl AsRust<Vec<String>> for CStringArray {
-    fn as_rust(&self) -> Result<Vec<String>, Error> {
+    fn as_rust(&self) -> Result<Vec<String>, AsRustError> {
         let mut result = vec![];
 
         let strings = unsafe {
@@ -41,7 +37,7 @@ impl AsRust<Vec<String>> for CStringArray {
         };
 
         for s in strings {
-            result.push(create_rust_string_from!(*s))
+            result.push(unsafe { CStr::raw_borrow(*s) }?.as_rust()?)
         }
 
         Ok(result)
@@ -49,15 +45,16 @@ impl AsRust<Vec<String>> for CStringArray {
 }
 
 impl CReprOf<Vec<String>> for CStringArray {
-    fn c_repr_of(input: Vec<String>) -> Result<Self, Error> {
+    fn c_repr_of(input: Vec<String>) -> Result<Self, CReprOfError> {
         Ok(Self {
             size: input.len() as libc::c_int,
             data: Box::into_raw(
                 input
                     .into_iter()
-                    .map(|s| convert_to_c_string_result!(s))
-                    .collect::<Result<Vec<*const libc::c_char>, _>>()
-                    .context("Could not convert Vector of Strings to C Repr")?
+                    .map::<Result<*const libc::c_char, CReprOfError>, _>(|s| {
+                        Ok(CString::c_repr_of(s)?.into_raw_pointer())
+                    })
+                    .collect::<Result<Vec<_>, _>>()?
                     .into_boxed_slice(),
             ) as *const *const libc::c_char,
         })
@@ -65,7 +62,7 @@ impl CReprOf<Vec<String>> for CStringArray {
 }
 
 impl CDrop for CStringArray {
-    fn do_drop(&mut self) -> Result<(), Error> {
+    fn do_drop(&mut self) -> Result<(), CDropError> {
         let _ = unsafe {
             let y = Box::from_raw(std::slice::from_raw_parts_mut(
                 self.data as *mut *mut libc::c_char,
@@ -113,7 +110,7 @@ pub struct CArray<T> {
 }
 
 impl<U: AsRust<V>, V> AsRust<Vec<V>> for CArray<U> {
-    fn as_rust(&self) -> Result<Vec<V>, Error> {
+    fn as_rust(&self) -> Result<Vec<V>, AsRustError> {
         let mut vec = Vec::with_capacity(self.size);
         if self.size > 0 {
             let values =
@@ -127,7 +124,7 @@ impl<U: AsRust<V>, V> AsRust<Vec<V>> for CArray<U> {
 }
 
 impl<U: CReprOf<V> + CDrop, V> CReprOf<Vec<V>> for CArray<U> {
-    fn c_repr_of(input: Vec<V>) -> Result<Self, Error> {
+    fn c_repr_of(input: Vec<V>) -> Result<Self, CReprOfError> {
         let input_size = input.len();
         Ok(Self {
             data_ptr: if input_size > 0 {
@@ -135,7 +132,7 @@ impl<U: CReprOf<V> + CDrop, V> CReprOf<Vec<V>> for CArray<U> {
                     input
                         .into_iter()
                         .map(|item| U::c_repr_of(item))
-                        .collect::<Result<Vec<_>, Error>>()
+                        .collect::<Result<Vec<_>, CReprOfError>>()
                         .expect("Could not convert to C representation")
                         .into_boxed_slice(),
                 ) as *const U
@@ -148,7 +145,7 @@ impl<U: CReprOf<V> + CDrop, V> CReprOf<Vec<V>> for CArray<U> {
 }
 
 impl<T> CDrop for CArray<T> {
-    fn do_drop(&mut self) -> Result<(), Error> {
+    fn do_drop(&mut self) -> Result<(), CDropError> {
         let _ = unsafe {
             Box::from_raw(std::slice::from_raw_parts_mut(
                 self.data_ptr as *mut T,
@@ -213,7 +210,7 @@ pub struct CRange<T> {
 }
 
 impl<U: AsRust<V>, V: PartialOrd + PartialEq> AsRust<Range<V>> for CRange<U> {
-    fn as_rust(&self) -> Result<Range<V>, Error> {
+    fn as_rust(&self) -> Result<Range<V>, AsRustError> {
         Ok(Range {
             start: self.start.as_rust()?,
             end: self.end.as_rust()?,
@@ -222,7 +219,7 @@ impl<U: AsRust<V>, V: PartialOrd + PartialEq> AsRust<Range<V>> for CRange<U> {
 }
 
 impl<U: CReprOf<V> + CDrop, V: PartialOrd + PartialEq> CReprOf<Range<V>> for CRange<U> {
-    fn c_repr_of(input: Range<V>) -> Result<Self, Error> {
+    fn c_repr_of(input: Range<V>) -> Result<Self, CReprOfError> {
         Ok(Self {
             start: U::c_repr_of(input.start)?,
             end: U::c_repr_of(input.end)?,
@@ -231,7 +228,7 @@ impl<U: CReprOf<V> + CDrop, V: PartialOrd + PartialEq> CReprOf<Range<V>> for CRa
 }
 
 impl<T> CDrop for CRange<T> {
-    fn do_drop(&mut self) -> Result<(), Error> {
+    fn do_drop(&mut self) -> Result<(), CDropError> {
         Ok(())
     }
 }
