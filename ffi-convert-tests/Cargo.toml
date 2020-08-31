@@ -5,6 +5,6 @@ authors = ["Sonos"]
 edition = "2018"
 
 [dependencies]
-failure = "0.1"
-ffi-convert = "0.2.2"
+anyhow = "1.0.32"
+ffi-convert = { path ="../ffi-convert" }
 libc = "0.2.66"
