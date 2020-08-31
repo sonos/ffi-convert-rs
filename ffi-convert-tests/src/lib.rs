@@ -1,6 +1,6 @@
-use std::ops::Range;
-use failure::{bail, Fallible};
+use anyhow::{bail, Result};
 use ffi_convert::*;
+use std::ops::Range;
 
 #[macro_export]
 macro_rules! generate_round_trip_rust_c_rust {
@@ -15,7 +15,7 @@ macro_rules! generate_round_trip_rust_c_rust {
     };
 }
 
-pub fn round_trip_test_rust_c_rust<T, U>(value: U) -> Fallible<()>
+pub fn round_trip_test_rust_c_rust<T, U>(value: U) -> Result<()>
 where
     T: AsRust<U> + CReprOf<U>,
     U: Clone + PartialEq,
@@ -159,10 +159,7 @@ mod tests {
                 subtitle: Some(String::from("first layer")),
             }]),
             is_delicious: true,
-            range: Range {
-                start: 20,
-                end: 30,
-            }
+            range: Range { start: 20, end: 30 },
         }
     });
 
@@ -183,7 +180,7 @@ mod tests {
             range: Range {
                 start: 50,
                 end: 100,
-            }
+            },
         }
     });
 }

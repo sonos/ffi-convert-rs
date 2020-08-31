@@ -202,7 +202,7 @@ pub enum CReprOfError {
     #[error("A string contains a nul bit")]
     StringContainsNullBit(#[from] NulError),
     #[error("An error occurred during conversion to C repr; {}", .0)]
-    Other(#[from] Box<dyn std::error::Error>),
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
@@ -216,7 +216,7 @@ pub enum CDropError {
     #[error("unexpected null pointer")]
     NullPointer(#[from] UnexpectedNullPointerError),
     #[error("An error occurred while dropping C struct: {}", .0)]
-    Other(#[from] Box<dyn std::error::Error>),
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Trait showing that the C-like struct implementing it can free up its part of memory that are not
@@ -233,7 +233,7 @@ pub enum AsRustError {
     #[error("could not convert string as it is not UTF-8: {}", .0)]
     Utf8Error(#[from] Utf8Error),
     #[error("An error occurred during conversion to Rust: {}", .0)]
-    Other(#[from] Box<dyn std::error::Error>),
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
 /// type and that an instance of the parametrized type can be created form this struct
