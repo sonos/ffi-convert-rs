@@ -134,9 +134,9 @@
 //! The `CReprOf` trait allows to create a C-compatible representation of the reciprocal idiomatic Rust struct by consuming the latter.
 
 //! ```
-//! # use ffi_convert::{Error, CDrop};
+//! # use ffi_convert::{CReprOfError, CDrop};
 //! pub trait CReprOf<T>: Sized + CDrop {
-//!     fn c_repr_of(input: T) -> Result<Self, Error>;
+//!     fn c_repr_of(input: T) -> Result<Self, CReprOfError>;
 //! }
 //! ```
 
@@ -151,9 +151,9 @@
 //! The `AsRust` trait allows to create an idiomatic Rust struct from a C-compatible struct :
 
 //! ```
-//! # use ffi_convert::{Error, CDrop};
+//! # use ffi_convert::{AsRustError, CDrop};
 //! pub trait AsRust<T> {
-//!     fn as_rust(&self) -> Result<T, Error>;
+//!     fn as_rust(&self) -> Result<T, AsRustError>;
 //! }
 //! ```
 
@@ -174,5 +174,3 @@ mod types;
 
 pub use conversions::*;
 pub use types::*;
-
-pub use failure::Error;

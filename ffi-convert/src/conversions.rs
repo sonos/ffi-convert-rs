@@ -1,4 +1,6 @@
-use failure::{ensure, format_err, Error, ResultExt};
+use std::ffi::NulError;
+use std::str::Utf8Error;
+use thiserror::Error;
 
 /// A macro to convert a `std::String` to a C-compatible representation : a raw pointer to libc::c_char.
 /// After calling this function, the caller is responsible for releasing the memory.
@@ -105,10 +107,7 @@ macro_rules! take_back_nullable_c_string_array {
 macro_rules! create_rust_string_from {
     ($pointer:expr) => {{
         use $crate::RawBorrow;
-        unsafe { std::ffi::CStr::raw_borrow($pointer) }?
-            .to_str()
-            .context("Could not convert pointer to rust str")?
-            .to_owned()
+        unsafe { std::ffi::CStr::raw_borrow($pointer) }?.as_rust()?
     }};
 }
 
@@ -146,7 +145,7 @@ macro_rules! create_optional_rust_vec_string_from {
 macro_rules! impl_c_repr_of_for {
     ($typ:ty) => {
         impl CReprOf<$typ> for $typ {
-            fn c_repr_of(input: $typ) -> Result<$typ, Error> {
+            fn c_repr_of(input: $typ) -> Result<$typ, CReprOfError> {
                 Ok(input)
             }
         }
@@ -154,7 +153,7 @@ macro_rules! impl_c_repr_of_for {
 
     ($from_typ:ty, $to_typ:ty) => {
         impl CReprOf<$from_typ> for $to_typ {
-            fn c_repr_of(input: $from_typ) -> Result<$to_typ, Error> {
+            fn c_repr_of(input: $from_typ) -> Result<$to_typ, CReprOfError> {
                 Ok(input as $to_typ)
             }
         }
@@ -165,7 +164,7 @@ macro_rules! impl_c_repr_of_for {
 macro_rules! impl_c_drop_for {
     ($typ:ty) => {
         impl CDrop for $typ {
-            fn do_drop(&mut self) -> Result<(), Error> {
+            fn do_drop(&mut self) -> Result<(), CDropError> {
                 Ok(())
             }
         }
@@ -175,7 +174,7 @@ macro_rules! impl_c_drop_for {
 macro_rules! impl_as_rust_for {
     ($typ:ty) => {
         impl AsRust<$typ> for $typ {
-            fn as_rust(&self) -> Result<$typ, Error> {
+            fn as_rust(&self) -> Result<$typ, AsRustError> {
                 Ok(*self)
             }
         }
@@ -183,35 +182,68 @@ macro_rules! impl_as_rust_for {
 
     ($from_typ:ty, $to_typ:ty) => {
         impl AsRust<$to_typ> for $from_typ {
-            fn as_rust(&self) -> Result<$to_typ, Error> {
+            fn as_rust(&self) -> Result<$to_typ, AsRustError> {
                 Ok(*self as $to_typ)
             }
         }
     };
 }
 
-pub fn point_to_string(pointer: *mut *const libc::c_char, string: String) -> Result<(), Error> {
+pub fn point_to_string(
+    pointer: *mut *const libc::c_char,
+    string: String,
+) -> Result<(), CReprOfError> {
     unsafe { *pointer = std::ffi::CString::c_repr_of(string)?.into_raw_pointer() }
     Ok(())
+}
+
+#[derive(Error, Debug)]
+pub enum CReprOfError {
+    #[error("A string contains a nul bit")]
+    StringContainsNullBit(#[from] NulError),
+    #[error("An error occurred during conversion to C repr; {}", .0)]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
 /// type that can be created from an object of this type.
 pub trait CReprOf<T>: Sized + CDrop {
-    fn c_repr_of(input: T) -> Result<Self, Error>;
+    fn c_repr_of(input: T) -> Result<Self, CReprOfError>;
+}
+
+#[derive(Error, Debug)]
+pub enum CDropError {
+    #[error("unexpected null pointer")]
+    NullPointer(#[from] UnexpectedNullPointerError),
+    #[error("An error occurred while dropping C struct: {}", .0)]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Trait showing that the C-like struct implementing it can free up its part of memory that are not
 /// managed by Rust.
 pub trait CDrop {
-    fn do_drop(&mut self) -> Result<(), Error>;
+    fn do_drop(&mut self) -> Result<(), CDropError>;
 }
 
+#[derive(Error, Debug)]
+pub enum AsRustError {
+    #[error("unexpected null pointer")]
+    NullPointer(#[from] UnexpectedNullPointerError),
+
+    #[error("could not convert string as it is not UTF-8: {}", .0)]
+    Utf8Error(#[from] Utf8Error),
+    #[error("An error occurred during conversion to Rust: {}", .0)]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
+}
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
 /// type and that an instance of the parametrized type can be created form this struct
 pub trait AsRust<T> {
-    fn as_rust(&self) -> Result<T, Error>;
+    fn as_rust(&self) -> Result<T, AsRustError>;
 }
+
+#[derive(Error, Debug)]
+#[error("Could not use raw pointer: unexpected null pointer")]
+pub struct UnexpectedNullPointerError;
 
 /// Trait representing the creation of a raw pointer from a struct and the recovery of said pointer.
 ///
@@ -227,21 +259,22 @@ pub trait AsRust<T> {
 /// `*const libc::c_char` from a CString.
 pub trait RawPointerConverter<T>: Sized {
     fn into_raw_pointer(self) -> *const T;
-    unsafe fn from_raw_pointer(input: *const T) -> Result<Self, Error>;
+    unsafe fn from_raw_pointer(input: *const T) -> Result<Self, UnexpectedNullPointerError>;
 
-    unsafe fn drop_raw_pointer(input: *const T) -> Result<(), Error> {
+    unsafe fn drop_raw_pointer(input: *const T) -> Result<(), UnexpectedNullPointerError> {
         T::from_raw_pointer(input).map(|_| ())
     }
 }
 
 /// Trait to create borrowed references to type T, from a raw pointer to a T
 pub trait RawBorrow<T> {
-    unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, Error>;
+    unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, UnexpectedNullPointerError>;
 }
 
 /// Trait to create mutable borrowed references to type T, from a raw pointer to a T
 pub trait RawBorrowMut<T> {
-    unsafe fn raw_borrow_mut<'a>(input: *mut T) -> Result<&'a mut Self, Error>;
+    unsafe fn raw_borrow_mut<'a>(input: *mut T)
+        -> Result<&'a mut Self, UnexpectedNullPointerError>;
 }
 
 /// TODO custom derive instead of generic impl, this would prevent CString from having 2 impls...
@@ -251,30 +284,28 @@ impl<T> RawPointerConverter<T> for T {
         Box::into_raw(Box::new(self)) as _
     }
 
-    unsafe fn from_raw_pointer(input: *const T) -> Result<T, Error> {
-        ensure!(
-            !input.is_null(),
-            "could not take raw pointer, unexpected null pointer"
-        );
-        Ok(*Box::from_raw(input as *mut T))
+    unsafe fn from_raw_pointer(input: *const T) -> Result<T, UnexpectedNullPointerError> {
+        if input.is_null() {
+            Err(UnexpectedNullPointerError)
+        } else {
+            Ok(*Box::from_raw(input as *mut T))
+        }
     }
 }
 
 /// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
 impl<T> RawBorrow<T> for T {
-    unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, Error> {
-        input
-            .as_ref()
-            .ok_or_else(|| format_err!("could not borrow, unexpected null pointer"))
+    unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, UnexpectedNullPointerError> {
+        input.as_ref().ok_or_else(|| UnexpectedNullPointerError)
     }
 }
 
 /// Trait that allows obtaining a mutable borrowed reference to a type T from a raw pointer to T
 impl<T> RawBorrowMut<T> for T {
-    unsafe fn raw_borrow_mut<'a>(input: *mut T) -> Result<&'a mut Self, Error> {
-        input
-            .as_mut()
-            .ok_or_else(|| format_err!("could not borrow, unexpected null pointer"))
+    unsafe fn raw_borrow_mut<'a>(
+        input: *mut T,
+    ) -> Result<&'a mut Self, UnexpectedNullPointerError> {
+        input.as_mut().ok_or_else(|| UnexpectedNullPointerError)
     }
 }
 
@@ -283,12 +314,14 @@ impl RawPointerConverter<libc::c_void> for std::ffi::CString {
         self.into_raw() as _
     }
 
-    unsafe fn from_raw_pointer(input: *const libc::c_void) -> Result<Self, Error> {
-        ensure!(
-            !input.is_null(),
-            "could not take raw pointer, unexpected null pointer"
-        );
-        Ok(std::ffi::CString::from_raw(input as *mut libc::c_char))
+    unsafe fn from_raw_pointer(
+        input: *const libc::c_void,
+    ) -> Result<Self, UnexpectedNullPointerError> {
+        if input.is_null() {
+            Err(UnexpectedNullPointerError)
+        } else {
+            Ok(std::ffi::CString::from_raw(input as *mut libc::c_char))
+        }
     }
 }
 
@@ -297,22 +330,26 @@ impl RawPointerConverter<libc::c_char> for std::ffi::CString {
         self.into_raw() as _
     }
 
-    unsafe fn from_raw_pointer(input: *const libc::c_char) -> Result<Self, Error> {
-        ensure!(
-            !input.is_null(),
-            "could not take raw pointer, unexpected null pointer"
-        );
-        Ok(std::ffi::CString::from_raw(input as *mut libc::c_char))
+    unsafe fn from_raw_pointer(
+        input: *const libc::c_char,
+    ) -> Result<Self, UnexpectedNullPointerError> {
+        if input.is_null() {
+            Err(UnexpectedNullPointerError)
+        } else {
+            Ok(std::ffi::CString::from_raw(input as *mut libc::c_char))
+        }
     }
 }
 
 impl RawBorrow<libc::c_char> for std::ffi::CStr {
-    unsafe fn raw_borrow<'a>(input: *const libc::c_char) -> Result<&'a Self, Error> {
-        ensure!(
-            !input.is_null(),
-            "could not borrow, unexpected null pointer"
-        );
-        Ok(Self::from_ptr(input))
+    unsafe fn raw_borrow<'a>(
+        input: *const libc::c_char,
+    ) -> Result<&'a Self, UnexpectedNullPointerError> {
+        if input.is_null() {
+            Err(UnexpectedNullPointerError)
+        } else {
+            Ok(Self::from_ptr(input))
+        }
     }
 }
 
@@ -343,16 +380,14 @@ impl_c_repr_of_for!(bool);
 impl_c_repr_of_for!(usize, i32);
 
 impl CReprOf<bool> for u8 {
-    fn c_repr_of(input: bool) -> Result<u8, Error> {
+    fn c_repr_of(input: bool) -> Result<u8, CReprOfError> {
         Ok(if input { 1 } else { 0 })
     }
 }
 
 impl CReprOf<String> for std::ffi::CString {
-    fn c_repr_of(input: String) -> Result<Self, Error> {
-        std::ffi::CString::new(input)
-            .context("Could not convert String to C Repr")
-            .map_err(|e| e.into())
+    fn c_repr_of(input: String) -> Result<Self, CReprOfError> {
+        Ok(std::ffi::CString::new(input)?)
     }
 }
 
@@ -370,13 +405,13 @@ impl_as_rust_for!(bool);
 impl_as_rust_for!(i32, usize);
 
 impl AsRust<bool> for u8 {
-    fn as_rust(&self) -> Result<bool, Error> {
+    fn as_rust(&self) -> Result<bool, AsRustError> {
         Ok((*self) != 0)
     }
 }
 
 impl AsRust<String> for std::ffi::CStr {
-    fn as_rust(&self) -> Result<String, Error> {
+    fn as_rust(&self) -> Result<String, AsRustError> {
         self.to_str().map(|s| s.to_owned()).map_err(|e| e.into())
     }
 }

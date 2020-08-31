@@ -10,6 +10,6 @@ readme = "../README.md"
 keywords = ["ffi"]
 
 [dependencies]
-ffi-convert-derive = "0.2.2"
-failure = "0.1"
+ffi-convert-derive = {path = "../ffi-convert-derive"}
+thiserror = "1.0.20"
 libc = "0.2"

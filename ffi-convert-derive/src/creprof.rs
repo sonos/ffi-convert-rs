@@ -45,8 +45,7 @@ pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
 
     let c_repr_of_impl = quote!(
         impl CReprOf<# target_type> for # struct_name {
-            fn c_repr_of(input: # target_type) -> Result<Self, ffi_convert::Error> {
-                use failure::ResultExt;
+            fn c_repr_of(input: # target_type) -> Result<Self, ffi_convert::CReprOfError> {
                 use ffi_convert::RawPointerConverter;
                 Ok(Self {
                     # ( # c_repr_of_fields, )*
