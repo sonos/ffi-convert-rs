@@ -1,4 +1,4 @@
-# ffi_convert
+# ffi-convert
 ![ffi-convert](https://github.com/snipsco/snips-utils-rs/workflows/Rust/badge.svg?branch=master&event=push)
 [![ffi-convert on crates.io](https://img.shields.io/crates/v/ffi-convert.svg)](https://crates.io/crates/ffi-convert)
 [![ffi-convert documentation](https://docs.rs/ffi-convert/badge.svg)](https://docs.rs/ffi-convert/)
