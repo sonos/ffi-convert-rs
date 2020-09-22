@@ -46,7 +46,7 @@ pub struct Pancake {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop)]
+#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
 #[target_type(Pancake)]
 pub struct CPancake {
     name: *const libc::c_char,
@@ -70,12 +70,14 @@ pub struct Sauce {
     pub volume: f32,
 }
 
+
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop)]
+#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
 #[target_type(Sauce)]
 pub struct CSauce {
     volume: f32,
 }
+
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Topping {
@@ -83,11 +85,12 @@ pub struct Topping {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop)]
+#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
 #[target_type(Topping)]
 pub struct CTopping {
     amount: i32,
 }
+
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Layer {
@@ -96,13 +99,14 @@ pub struct Layer {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop)]
+#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
 #[target_type(Layer)]
 pub struct CLayer {
     number: i32,
     #[nullable]
     subtitle: *const libc::c_char,
 }
+
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dummy {
@@ -111,7 +115,7 @@ pub struct Dummy {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop)]
+#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
 #[target_type(Dummy)]
 pub struct CDummy {
     count: i32,
@@ -134,6 +138,7 @@ mod tests {
             describe: "yo".to_string(),
         }
     });
+
 
     generate_round_trip_rust_c_rust!(round_trip_layer, Layer, CLayer, {
         Layer {
