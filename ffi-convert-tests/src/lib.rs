@@ -70,14 +70,12 @@ pub struct Sauce {
     pub volume: f32,
 }
 
-
 #[repr(C)]
 #[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
 #[target_type(Sauce)]
 pub struct CSauce {
     volume: f32,
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Topping {
@@ -90,7 +88,6 @@ pub struct Topping {
 pub struct CTopping {
     amount: i32,
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Layer {
@@ -106,7 +103,6 @@ pub struct CLayer {
     #[nullable]
     subtitle: *const libc::c_char,
 }
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dummy {
@@ -138,7 +134,6 @@ mod tests {
             describe: "yo".to_string(),
         }
     });
-
 
     generate_round_trip_rust_c_rust!(round_trip_layer, Layer, CLayer, {
         Layer {

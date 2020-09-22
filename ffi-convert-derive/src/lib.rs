@@ -11,8 +11,8 @@ mod utils;
 use asrust::impl_asrust_macro;
 use cdrop::impl_cdrop_macro;
 use creprof::impl_creprof_macro;
-use rawpointerconverter::impl_rawpointerconverter_macro;
 use proc_macro::TokenStream;
+use rawpointerconverter::impl_rawpointerconverter_macro;
 use syn;
 
 #[proc_macro_derive(CReprOf, attributes(target_type, nullable))]

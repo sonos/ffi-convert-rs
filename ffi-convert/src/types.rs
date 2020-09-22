@@ -167,7 +167,9 @@ impl<T> RawPointerConverter<CArray<T>> for CArray<T> {
         convert_into_raw_pointer(self)
     }
 
-    unsafe fn from_raw_pointer(input: *const CArray<T>) -> Result<Self, UnexpectedNullPointerError> {
+    unsafe fn from_raw_pointer(
+        input: *const CArray<T>,
+    ) -> Result<Self, UnexpectedNullPointerError> {
         take_back_from_raw_pointer(input)
     }
 }

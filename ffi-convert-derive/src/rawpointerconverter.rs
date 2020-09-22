@@ -1,4 +1,4 @@
-use crate::utils::{parse_target_type};
+use crate::utils::parse_target_type;
 use proc_macro::TokenStream;
 use quote::quote;
 

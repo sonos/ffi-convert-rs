@@ -52,12 +52,14 @@ macro_rules! impl_as_rust_for {
 macro_rules! impl_rawpointerconverter_for {
     ($typ:ty) => {
         impl RawPointerConverter<$typ> for $typ {
-           fn into_raw_pointer(self) -> *const $typ {
+            fn into_raw_pointer(self) -> *const $typ {
                 convert_into_raw_pointer(self)
-           }
-           unsafe fn from_raw_pointer(input: *const $typ) -> Result<Self, UnexpectedNullPointerError> {
+            }
+            unsafe fn from_raw_pointer(
+                input: *const $typ,
+            ) -> Result<Self, UnexpectedNullPointerError> {
                 take_back_from_raw_pointer(input)
-           }
+            }
         }
     };
 }
@@ -140,7 +142,9 @@ pub fn convert_into_raw_pointer<T>(pointee: T) -> *const T {
     Box::into_raw(Box::new(pointee)) as _
 }
 
-pub unsafe fn take_back_from_raw_pointer<T>(input: *const T) -> Result<T, UnexpectedNullPointerError> {
+pub unsafe fn take_back_from_raw_pointer<T>(
+    input: *const T,
+) -> Result<T, UnexpectedNullPointerError> {
     if input.is_null() {
         Err(UnexpectedNullPointerError)
     } else {
@@ -156,7 +160,7 @@ pub trait RawBorrow<T> {
 /// Trait to create mutable borrowed references to type T, from a raw pointer to a T
 pub trait RawBorrowMut<T> {
     unsafe fn raw_borrow_mut<'a>(input: *mut T)
-                                 -> Result<&'a mut Self, UnexpectedNullPointerError>;
+        -> Result<&'a mut Self, UnexpectedNullPointerError>;
 }
 
 /// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
