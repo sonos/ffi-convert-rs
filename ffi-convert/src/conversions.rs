@@ -60,17 +60,6 @@ macro_rules! impl_rawpointerconverter_for {
            }
         }
     };
-
-    /*($f rom_typ:ty, $to_typ:ty) => {
-        impl RawPointerConverter<$from_typ> for $to_typ {
-           fn into_raw_pointer(self) -> *const T {
-                convert_into_raw_pointer(self)
-           }
-           unsafe fn from_raw_pointer(input: *const T) -> Result<Self, UnexpectedNullPointerError> {
-                take_back_from_raw_pointer(input)
-           }
-        }
-    };*/
 }
 
 pub fn point_to_string(
