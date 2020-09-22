@@ -55,11 +55,11 @@
 //! Instead of manually writing the body of the conversion traits, we can derive them :
 //!
 //! ```
-//! # use ffi_convert::{CReprOf, AsRust, CDrop};
+//! # use ffi_convert::{CReprOf, AsRust, CDrop, RawPointerConverter};
 //! # use ffi_convert::CArray;
 //! # use ffi_convert::RawBorrow;
 //! # struct Sauce {};
-//! # #[derive(CReprOf, AsRust, CDrop)]
+//! # #[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
 //! # #[target_type(Sauce)]
 //! # struct CSauce {};
 //! # struct Topping {};
