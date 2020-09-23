@@ -1,4 +1,4 @@
-use std::ffi::NulError;
+use std::ffi::{NulError, CString};
 use std::str::Utf8Error;
 use thiserror::Error;
 
@@ -55,10 +55,18 @@ macro_rules! impl_rawpointerconverter_for {
             fn into_raw_pointer(self) -> *const $typ {
                 convert_into_raw_pointer(self)
             }
+            fn into_raw_pointer_mut(self) -> *mut $typ {
+                convert_into_raw_pointer_mut(self)
+            }
             unsafe fn from_raw_pointer(
                 input: *const $typ,
             ) -> Result<Self, UnexpectedNullPointerError> {
                 take_back_from_raw_pointer(input)
+            }
+            unsafe fn from_raw_pointer_mut(
+                input: *mut $typ
+            ) -> Result<Self, UnexpectedNullPointerError> {
+                take_back_from_raw_pointer_mut(input)
             }
         }
     };
@@ -131,10 +139,16 @@ pub struct UnexpectedNullPointerError;
 /// pointer yourself, please use the `as_ref` method on the raw pointer to borrow it
 pub trait RawPointerConverter<T>: Sized {
     fn into_raw_pointer(self) -> *const T;
+    fn into_raw_pointer_mut(self) -> *mut T;
     unsafe fn from_raw_pointer(input: *const T) -> Result<Self, UnexpectedNullPointerError>;
+    unsafe fn from_raw_pointer_mut(input: *mut T) -> Result<Self, UnexpectedNullPointerError>;
 
     unsafe fn drop_raw_pointer(input: *const T) -> Result<(), UnexpectedNullPointerError> {
         Self::from_raw_pointer(input).map(|_| ())
+    }
+
+    unsafe fn drop_raw_pointer_mut(input: *mut T) -> Result<(), UnexpectedNullPointerError> {
+        Self::from_raw_pointer_mut(input).map(|_| ())
     }
 }
 
@@ -142,13 +156,23 @@ pub fn convert_into_raw_pointer<T>(pointee: T) -> *const T {
     Box::into_raw(Box::new(pointee)) as _
 }
 
+pub fn convert_into_raw_pointer_mut<T>(pointee: T) -> *mut T {
+    Box::into_raw(Box::new(pointee))
+}
+
 pub unsafe fn take_back_from_raw_pointer<T>(
     input: *const T,
+) -> Result<T, UnexpectedNullPointerError> {
+    take_back_from_raw_pointer_mut(input as _)
+}
+
+pub unsafe fn take_back_from_raw_pointer_mut<T>(
+    input: *mut T,
 ) -> Result<T, UnexpectedNullPointerError> {
     if input.is_null() {
         Err(UnexpectedNullPointerError)
     } else {
-        Ok(*Box::from_raw(input as *mut T))
+        Ok(*Box::from_raw(input))
     }
 }
 
@@ -160,7 +184,7 @@ pub trait RawBorrow<T> {
 /// Trait to create mutable borrowed references to type T, from a raw pointer to a T
 pub trait RawBorrowMut<T> {
     unsafe fn raw_borrow_mut<'a>(input: *mut T)
-        -> Result<&'a mut Self, UnexpectedNullPointerError>;
+                                 -> Result<&'a mut Self, UnexpectedNullPointerError>;
 }
 
 /// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
@@ -184,9 +208,17 @@ impl RawPointerConverter<libc::c_void> for std::ffi::CString {
         self.into_raw() as _
     }
 
+    fn into_raw_pointer_mut(self) -> *mut libc::c_void {
+        self.into_raw() as _
+    }
+
     unsafe fn from_raw_pointer(
         input: *const libc::c_void,
     ) -> Result<Self, UnexpectedNullPointerError> {
+        Self::from_raw_pointer_mut(input as *mut libc::c_void)
+    }
+
+    unsafe fn from_raw_pointer_mut(input: *mut libc::c_void) -> Result<Self, UnexpectedNullPointerError> {
         if input.is_null() {
             Err(UnexpectedNullPointerError)
         } else {
@@ -200,9 +232,15 @@ impl RawPointerConverter<libc::c_char> for std::ffi::CString {
         self.into_raw() as _
     }
 
+    fn into_raw_pointer_mut(self) -> *mut libc::c_char { self.into_raw() }
+
     unsafe fn from_raw_pointer(
         input: *const libc::c_char,
     ) -> Result<Self, UnexpectedNullPointerError> {
+        Self::from_raw_pointer_mut(input as *mut libc::c_char)
+    }
+
+    unsafe fn from_raw_pointer_mut(input: *mut libc::c_char) -> Result<Self, UnexpectedNullPointerError> {
         if input.is_null() {
             Err(UnexpectedNullPointerError)
         } else {
