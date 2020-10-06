@@ -152,20 +152,24 @@ pub trait RawPointerConverter<T>: Sized {
     }
 }
 
+#[doc(hidden)]
 pub fn convert_into_raw_pointer<T>(pointee: T) -> *const T {
     Box::into_raw(Box::new(pointee)) as _
 }
 
+#[doc(hidden)]
 pub fn convert_into_raw_pointer_mut<T>(pointee: T) -> *mut T {
     Box::into_raw(Box::new(pointee))
 }
 
+#[doc(hidden)]
 pub unsafe fn take_back_from_raw_pointer<T>(
     input: *const T,
 ) -> Result<T, UnexpectedNullPointerError> {
     take_back_from_raw_pointer_mut(input as _)
 }
 
+#[doc(hidden)]
 pub unsafe fn take_back_from_raw_pointer_mut<T>(
     input: *mut T,
 ) -> Result<T, UnexpectedNullPointerError> {
