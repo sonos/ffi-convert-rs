@@ -1,9 +1,9 @@
-//! A collection of utilities (functions, traits, data structures, etc ...) to ease conversion between Rust and C-compatible data structures.
+//! A collection of utilities (traits, data structures, conversion functions, etc ...) to ease conversion between Rust and C-compatible data structures.
 //!
 //! Through two **conversion traits**, **`CReprOf`** and **`AsRust`**, this crate provides a framework to convert idiomatic Rust structs to C-compatible structs that can pass through an FFI boundary, and conversely.
 //! They ensure that the developer uses best practices when performing the conversion in both directions (ownership-wise).
 //!
-//! The crate also provides a collection of useful utility functions to perform conversions of types.
+//! The crate also provides a collection of useful utility functions and traits to perform conversions of types.
 //! It goes hand in hand with the `ffi-convert-derive` crate as it provides an **automatic derivation** of the `CReprOf` and `AsRust` trait.
 //!
 //! # Usage
@@ -86,9 +86,14 @@
 //! }
 //! ```
 //!
-//! You may have noticed that you have to derive the CDrop trait.
+//! You may have noticed that you have to derive two traits : the CDrop trait and the RawPointerConverter trait.
+//!
 //! The CDrop trait needs to be implemented on every C-compatible struct that require manual resource management.
 //! The release of those resources should be done in the drop method of the CDrop trait.
+//!
+//! The RawPointerConverter trait is implemented to perform the conversion of a C-like struct to a raw-pointer to this C-like structure (and conversely).
+//! Here, it is used behind the scene to convert a `CSauce` struct to a pointer to a raw pointer to CSause struct : `*const CSauce`
+//! (needed behind the scenes when the `CReprOf` trait is derived for `CPizza`).
 //!
 //! You can now pass the `CPizza` struct through your FFI boundary !
 //!
@@ -158,12 +163,19 @@
 //! ```
 
 //! This shows that the struct implementing it is a `repr(C)` compatible view of the parametrized
-//! type and that an instance of the parametrized type can be created form this struct.
+//! type and that an instance of the parametrized type can be created from this struct.
 
 //! ## The CDrop trait
 
 //! A Trait showing that the `repr(C)` compatible view implementing it can free up its part of memory that are not
 //! managed by Rust drop mechanism.
+
+//! ## The RawPointerConverter trait
+
+//! This trait completes the conversion traits toolbox provided by this crate : It expresses the
+//! conversion of a C-like struct to a raw pointer to this struct and conversely.
+//!
+//! This conversion trait comes in handy for C-like struct that have fields that points to other structs.
 
 //! ## Caveats with derivation of CReprOf and AsRust traits
 //!
