@@ -58,10 +58,6 @@
 //! # use ffi_convert::{CReprOf, AsRust, CDrop, RawPointerConverter};
 //! # use ffi_convert::CArray;
 //! # use ffi_convert::RawBorrow;
-//! # struct Sauce {};
-//! # #[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
-//! # #[target_type(Sauce)]
-//! # struct CSauce {};
 //! # struct Topping {};
 //! # #[derive(CReprOf, AsRust, CDrop)]
 //! # #[target_type(Topping)]
@@ -74,6 +70,11 @@
 //! #     weight: f32
 //! # };
 //! use libc::{c_char, c_float};
+//!
+//! struct Sauce {};
+//! #[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+//! #[target_type(Sauce)]
+//! struct CSauce {};
 //!
 //! #[repr(C)]
 //! #[derive(CReprOf, AsRust, CDrop)]
