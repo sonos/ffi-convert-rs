@@ -1,4 +1,4 @@
-use std::ffi::NulError;
+use std::ffi::{CString, NulError};
 use std::str::Utf8Error;
 use thiserror::Error;
 
@@ -44,6 +44,29 @@ macro_rules! impl_as_rust_for {
         impl AsRust<$to_typ> for $from_typ {
             fn as_rust(&self) -> Result<$to_typ, AsRustError> {
                 Ok(*self as $to_typ)
+            }
+        }
+    };
+}
+
+macro_rules! impl_rawpointerconverter_for {
+    ($typ:ty) => {
+        impl RawPointerConverter<$typ> for $typ {
+            fn into_raw_pointer(self) -> *const $typ {
+                convert_into_raw_pointer(self)
+            }
+            fn into_raw_pointer_mut(self) -> *mut $typ {
+                convert_into_raw_pointer_mut(self)
+            }
+            unsafe fn from_raw_pointer(
+                input: *const $typ,
+            ) -> Result<Self, UnexpectedNullPointerError> {
+                take_back_from_raw_pointer(input)
+            }
+            unsafe fn from_raw_pointer_mut(
+                input: *mut $typ,
+            ) -> Result<Self, UnexpectedNullPointerError> {
+                take_back_from_raw_pointer_mut(input)
             }
         }
     };
@@ -95,6 +118,7 @@ pub enum AsRustError {
     #[error("An error occurred during conversion to Rust: {}", .0)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
+
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
 /// type and that an instance of the parametrized type can be created form this struct
 pub trait AsRust<T> {
@@ -107,22 +131,52 @@ pub struct UnexpectedNullPointerError;
 
 /// Trait representing the creation of a raw pointer from a struct and the recovery of said pointer.
 ///
-/// The `from_raw_pointer` function should be used only on pointers obtained thought the
+/// The `from_raw_pointer` function should be used only on pointers obtained through the
 /// `into_raw_pointer` method (and is thus unsafe as we don't have any way to get insurance of that
 /// from the compiler).
 ///
 /// The `from_raw_pointer` effectively takes back ownership of the pointer. If you didn't create the
 /// pointer yourself, please use the `as_ref` method on the raw pointer to borrow it
-///
-/// A generic implementation of this trait exist for every struct, it will use a `Box` to create the
-/// pointer. There is also a special implementation available in order to create a
-/// `*const libc::c_char` from a CString.
 pub trait RawPointerConverter<T>: Sized {
     fn into_raw_pointer(self) -> *const T;
+    fn into_raw_pointer_mut(self) -> *mut T;
     unsafe fn from_raw_pointer(input: *const T) -> Result<Self, UnexpectedNullPointerError>;
+    unsafe fn from_raw_pointer_mut(input: *mut T) -> Result<Self, UnexpectedNullPointerError>;
 
     unsafe fn drop_raw_pointer(input: *const T) -> Result<(), UnexpectedNullPointerError> {
-        T::from_raw_pointer(input).map(|_| ())
+        Self::from_raw_pointer(input).map(|_| ())
+    }
+
+    unsafe fn drop_raw_pointer_mut(input: *mut T) -> Result<(), UnexpectedNullPointerError> {
+        Self::from_raw_pointer_mut(input).map(|_| ())
+    }
+}
+
+#[doc(hidden)]
+pub fn convert_into_raw_pointer<T>(pointee: T) -> *const T {
+    Box::into_raw(Box::new(pointee)) as _
+}
+
+#[doc(hidden)]
+pub fn convert_into_raw_pointer_mut<T>(pointee: T) -> *mut T {
+    Box::into_raw(Box::new(pointee))
+}
+
+#[doc(hidden)]
+pub unsafe fn take_back_from_raw_pointer<T>(
+    input: *const T,
+) -> Result<T, UnexpectedNullPointerError> {
+    take_back_from_raw_pointer_mut(input as _)
+}
+
+#[doc(hidden)]
+pub unsafe fn take_back_from_raw_pointer_mut<T>(
+    input: *mut T,
+) -> Result<T, UnexpectedNullPointerError> {
+    if input.is_null() {
+        Err(UnexpectedNullPointerError)
+    } else {
+        Ok(*Box::from_raw(input))
     }
 }
 
@@ -135,22 +189,6 @@ pub trait RawBorrow<T> {
 pub trait RawBorrowMut<T> {
     unsafe fn raw_borrow_mut<'a>(input: *mut T)
         -> Result<&'a mut Self, UnexpectedNullPointerError>;
-}
-
-/// TODO custom derive instead of generic impl, this would prevent CString from having 2 impls...
-/// Trait representing conversion operations from and to owned type T to a raw pointer to T
-impl<T> RawPointerConverter<T> for T {
-    fn into_raw_pointer(self) -> *const T {
-        Box::into_raw(Box::new(self)) as _
-    }
-
-    unsafe fn from_raw_pointer(input: *const T) -> Result<T, UnexpectedNullPointerError> {
-        if input.is_null() {
-            Err(UnexpectedNullPointerError)
-        } else {
-            Ok(*Box::from_raw(input as *mut T))
-        }
-    }
 }
 
 /// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
@@ -174,8 +212,18 @@ impl RawPointerConverter<libc::c_void> for std::ffi::CString {
         self.into_raw() as _
     }
 
+    fn into_raw_pointer_mut(self) -> *mut libc::c_void {
+        self.into_raw() as _
+    }
+
     unsafe fn from_raw_pointer(
         input: *const libc::c_void,
+    ) -> Result<Self, UnexpectedNullPointerError> {
+        Self::from_raw_pointer_mut(input as *mut libc::c_void)
+    }
+
+    unsafe fn from_raw_pointer_mut(
+        input: *mut libc::c_void,
     ) -> Result<Self, UnexpectedNullPointerError> {
         if input.is_null() {
             Err(UnexpectedNullPointerError)
@@ -190,8 +238,18 @@ impl RawPointerConverter<libc::c_char> for std::ffi::CString {
         self.into_raw() as _
     }
 
+    fn into_raw_pointer_mut(self) -> *mut libc::c_char {
+        self.into_raw()
+    }
+
     unsafe fn from_raw_pointer(
         input: *const libc::c_char,
+    ) -> Result<Self, UnexpectedNullPointerError> {
+        Self::from_raw_pointer_mut(input as *mut libc::c_char)
+    }
+
+    unsafe fn from_raw_pointer_mut(
+        input: *mut libc::c_char,
     ) -> Result<Self, UnexpectedNullPointerError> {
         if input.is_null() {
             Err(UnexpectedNullPointerError)
@@ -275,3 +333,14 @@ impl AsRust<String> for std::ffi::CStr {
         self.to_str().map(|s| s.to_owned()).map_err(|e| e.into())
     }
 }
+
+impl_rawpointerconverter_for!(usize);
+impl_rawpointerconverter_for!(i16);
+impl_rawpointerconverter_for!(u16);
+impl_rawpointerconverter_for!(i32);
+impl_rawpointerconverter_for!(u32);
+impl_rawpointerconverter_for!(i64);
+impl_rawpointerconverter_for!(u64);
+impl_rawpointerconverter_for!(f32);
+impl_rawpointerconverter_for!(f64);
+impl_rawpointerconverter_for!(bool);

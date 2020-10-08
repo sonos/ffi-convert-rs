@@ -162,6 +162,28 @@ impl<T> Drop for CArray<T> {
     }
 }
 
+impl<T> RawPointerConverter<CArray<T>> for CArray<T> {
+    fn into_raw_pointer(self) -> *const CArray<T> {
+        convert_into_raw_pointer(self)
+    }
+
+    fn into_raw_pointer_mut(self) -> *mut CArray<T> {
+        convert_into_raw_pointer_mut(self)
+    }
+
+    unsafe fn from_raw_pointer(
+        input: *const CArray<T>,
+    ) -> Result<Self, UnexpectedNullPointerError> {
+        take_back_from_raw_pointer(input)
+    }
+
+    unsafe fn from_raw_pointer_mut(
+        input: *mut CArray<T>,
+    ) -> Result<Self, UnexpectedNullPointerError> {
+        take_back_from_raw_pointer_mut(input)
+    }
+}
+
 /// A utility type to represent range.
 /// Note that the parametrized type T should have have `CReprOf` and `AsRust` trait implementated.
 ///

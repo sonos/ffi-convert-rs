@@ -5,12 +5,14 @@ extern crate proc_macro;
 mod asrust;
 mod cdrop;
 mod creprof;
+mod rawpointerconverter;
 mod utils;
 
 use asrust::impl_asrust_macro;
 use cdrop::impl_cdrop_macro;
 use creprof::impl_creprof_macro;
 use proc_macro::TokenStream;
+use rawpointerconverter::impl_rawpointerconverter_macro;
 use syn;
 
 #[proc_macro_derive(CReprOf, attributes(target_type, nullable))]
@@ -29,4 +31,10 @@ pub fn asrust_derive(token_stream: TokenStream) -> TokenStream {
 pub fn cdrop_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_cdrop_macro(&ast)
+}
+
+#[proc_macro_derive(RawPointerConverter)]
+pub fn rawpointerconverter_derive(token_stream: TokenStream) -> TokenStream {
+    let ast = syn::parse(token_stream).unwrap();
+    impl_rawpointerconverter_macro(&ast)
 }
