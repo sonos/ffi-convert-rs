@@ -1,4 +1,4 @@
-use std::ffi::{NulError, CString};
+use std::ffi::{CString, NulError};
 use std::str::Utf8Error;
 use thiserror::Error;
 
@@ -64,7 +64,7 @@ macro_rules! impl_rawpointerconverter_for {
                 take_back_from_raw_pointer(input)
             }
             unsafe fn from_raw_pointer_mut(
-                input: *mut $typ
+                input: *mut $typ,
             ) -> Result<Self, UnexpectedNullPointerError> {
                 take_back_from_raw_pointer_mut(input)
             }
@@ -188,7 +188,7 @@ pub trait RawBorrow<T> {
 /// Trait to create mutable borrowed references to type T, from a raw pointer to a T
 pub trait RawBorrowMut<T> {
     unsafe fn raw_borrow_mut<'a>(input: *mut T)
-                                 -> Result<&'a mut Self, UnexpectedNullPointerError>;
+        -> Result<&'a mut Self, UnexpectedNullPointerError>;
 }
 
 /// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
@@ -222,7 +222,9 @@ impl RawPointerConverter<libc::c_void> for std::ffi::CString {
         Self::from_raw_pointer_mut(input as *mut libc::c_void)
     }
 
-    unsafe fn from_raw_pointer_mut(input: *mut libc::c_void) -> Result<Self, UnexpectedNullPointerError> {
+    unsafe fn from_raw_pointer_mut(
+        input: *mut libc::c_void,
+    ) -> Result<Self, UnexpectedNullPointerError> {
         if input.is_null() {
             Err(UnexpectedNullPointerError)
         } else {
@@ -236,7 +238,9 @@ impl RawPointerConverter<libc::c_char> for std::ffi::CString {
         self.into_raw() as _
     }
 
-    fn into_raw_pointer_mut(self) -> *mut libc::c_char { self.into_raw() }
+    fn into_raw_pointer_mut(self) -> *mut libc::c_char {
+        self.into_raw()
+    }
 
     unsafe fn from_raw_pointer(
         input: *const libc::c_char,
@@ -244,7 +248,9 @@ impl RawPointerConverter<libc::c_char> for std::ffi::CString {
         Self::from_raw_pointer_mut(input as *mut libc::c_char)
     }
 
-    unsafe fn from_raw_pointer_mut(input: *mut libc::c_char) -> Result<Self, UnexpectedNullPointerError> {
+    unsafe fn from_raw_pointer_mut(
+        input: *mut libc::c_char,
+    ) -> Result<Self, UnexpectedNullPointerError> {
         if input.is_null() {
             Err(UnexpectedNullPointerError)
         } else {
