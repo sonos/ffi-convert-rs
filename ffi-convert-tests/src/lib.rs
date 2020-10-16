@@ -43,11 +43,13 @@ pub struct Pancake {
     pub layers: Option<Vec<Layer>>,
     pub is_delicious: bool,
     pub range: Range<usize>,
+    pub some_futile_info: Option<String>,
 }
 
 #[repr(C)]
 #[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
 #[target_type(Pancake)]
+#[as_rust_extra_field(some_futile_info = None)]
 pub struct CPancake {
     name: *const libc::c_char,
     #[nullable]
@@ -160,6 +162,7 @@ mod tests {
             }]),
             is_delicious: true,
             range: Range { start: 20, end: 30 },
+            some_futile_info: None,
         }
     });
 
@@ -181,6 +184,7 @@ mod tests {
                 start: 50,
                 end: 100,
             },
+            some_futile_info: None,
         }
     });
 }
