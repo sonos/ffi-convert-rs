@@ -1,6 +1,9 @@
-use crate::utils::{parse_struct_fields, parse_target_type, Field};
 use proc_macro::TokenStream;
+
 use quote::quote;
+use syn::parse::{Parse, ParseBuffer};
+
+use crate::utils::{parse_struct_fields, parse_target_type, Field};
 
 pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
     let struct_name = &input.ident;
@@ -55,14 +58,45 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
         })
         .collect::<Vec<_>>();
 
+    let extra_fields = &input
+        .attrs
+        .iter()
+        .filter(|attribute| {
+            attribute.path.get_ident().map(|it| it.to_string())
+                == Some("as_rust_extra_field".into())
+        })
+        .map(|it| {
+            let ExtraFieldsArgs { field_name, init } = it.parse_args().unwrap();
+            quote! {#field_name: #init}
+        })
+        .collect::<Vec<_>>();
+
     quote!(
         impl AsRust<#target_type> for #struct_name {
             fn as_rust(&self) -> Result<#target_type, ffi_convert::AsRustError> {
                 Ok(#target_type {
                     #(#fields, )*
+                    #(#extra_fields, )*
                 })
             }
         }
     )
     .into()
+}
+
+struct ExtraFieldsArgs {
+    field_name: syn::Ident,
+    init: syn::Expr,
+}
+
+impl Parse for ExtraFieldsArgs {
+    fn parse(input: &ParseBuffer) -> Result<Self, syn::parse::Error> {
+        let field_name = input.parse()?;
+
+        input.parse::<syn::Token![=]>()?;
+
+        let init = input.parse()?;
+
+        Ok(ExtraFieldsArgs { field_name, init })
+    }
 }

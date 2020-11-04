@@ -1,4 +1,4 @@
-use std::ffi::{CString, NulError};
+use std::ffi::NulError;
 use std::str::Utf8Error;
 use thiserror::Error;
 

@@ -21,7 +21,7 @@ pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
     impl_creprof_macro(&ast)
 }
 
-#[proc_macro_derive(AsRust, attributes(target_type, nullable))]
+#[proc_macro_derive(AsRust, attributes(target_type, nullable, as_rust_extra_field))]
 pub fn asrust_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_asrust_macro(&ast)
