@@ -76,6 +76,12 @@ impl CDrop for CStringArray {
     }
 }
 
+impl Drop for CStringArray {
+    fn drop(&mut self) {
+        let _ = self.do_drop();
+    }
+}
+
 /// A utility type to represent arrays of the parametrized type.
 /// Note that the parametrized type should have a C-compatible representation.
 ///
