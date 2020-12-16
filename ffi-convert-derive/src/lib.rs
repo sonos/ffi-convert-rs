@@ -15,13 +15,16 @@ use proc_macro::TokenStream;
 use rawpointerconverter::impl_rawpointerconverter_macro;
 use syn;
 
-#[proc_macro_derive(CReprOf, attributes(target_type, nullable))]
+#[proc_macro_derive(CReprOf, attributes(target_type, nullable, c_repr_of_convert))]
 pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_creprof_macro(&ast)
 }
 
-#[proc_macro_derive(AsRust, attributes(target_type, nullable, as_rust_extra_field))]
+#[proc_macro_derive(
+    AsRust,
+    attributes(target_type, nullable, as_rust_extra_field, as_rust_ignore)
+)]
 pub fn asrust_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_asrust_macro(&ast)

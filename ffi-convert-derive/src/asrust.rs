@@ -11,7 +11,7 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
 
     let fields = parse_struct_fields(&input.data)
         .iter()
-        .map(|field| {
+        .filter_map(|field| {
             let Field {
                 name: field_name,
                 ref field_type,
@@ -54,7 +54,12 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
                     #field_name: #conversion
                 )
             };
-            conversion
+            if field.c_repr_of_convert.is_some() {
+                // ignore field for as_rust if it has a special c_repr_of handling
+                None
+            } else {
+                Some(conversion)
+            }
         })
         .collect::<Vec<_>>();
 
@@ -66,7 +71,9 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
                 == Some("as_rust_extra_field".into())
         })
         .map(|it| {
-            let ExtraFieldsArgs { field_name, init } = it.parse_args().unwrap();
+            let ExtraFieldsArgs { field_name, init } = it
+                .parse_args()
+                .expect("Could not parse args for as_rust_extra_field");
             quote! {#field_name: #init}
         })
         .collect::<Vec<_>>();
