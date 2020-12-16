@@ -1,6 +1,8 @@
-use crate::utils::{parse_struct_fields, parse_target_type, Field};
 use proc_macro::TokenStream;
+
 use quote::quote;
+
+use crate::utils::{parse_struct_fields, parse_target_type, CReprOfConvertOverride, Field};
 
 pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     let struct_name = &input.ident;
@@ -39,7 +41,11 @@ pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
             } else {
                 quote!(#field_name: { let field = input.#field_name ; #conversion })
             };
-            conversion
+            if let Some(CReprOfConvertOverride { convert, .. }) = &field.c_repr_of_convert {
+                quote!(#field_name: #convert)
+            } else {
+                conversion
+            }
         })
         .collect::<Vec<_>>();
 

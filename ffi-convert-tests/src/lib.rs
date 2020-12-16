@@ -44,12 +44,14 @@ pub struct Pancake {
     pub is_delicious: bool,
     pub range: Range<usize>,
     pub some_futile_info: Option<String>,
+    pub flattened_range: Range<i64>,
 }
 
 #[repr(C)]
 #[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
 #[target_type(Pancake)]
 #[as_rust_extra_field(some_futile_info = None)]
+#[as_rust_extra_field(flattened_range = self.flattened_range_start..self.flattened_range_end)]
 pub struct CPancake {
     name: *const libc::c_char,
     #[nullable]
@@ -65,6 +67,10 @@ pub struct CPancake {
     layers: *const CArray<CLayer>,
     is_delicious: u8,
     pub range: CRange<i32>,
+    #[c_repr_of_convert(input.flattened_range.start)]
+    flattened_range_start: i64,
+    #[c_repr_of_convert(input.flattened_range.end)]
+    flattened_range_end: i64,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -163,6 +169,7 @@ mod tests {
             is_delicious: true,
             range: Range { start: 20, end: 30 },
             some_futile_info: None,
+            flattened_range: Range { start: 42, end: 64 },
         }
     });
 
@@ -185,6 +192,7 @@ mod tests {
                 end: 100,
             },
             some_futile_info: None,
+            flattened_range: Range { start: 42, end: 64 },
         }
     });
 }

@@ -1,3 +1,5 @@
+use syn::parse::{Parse, ParseBuffer};
+
 pub fn parse_target_type(attrs: &Vec<syn::Attribute>) -> syn::Path {
     let target_type_attribute = attrs
         .iter()
@@ -36,7 +38,19 @@ pub struct Field<'a> {
     pub is_nullable: bool,
     pub is_string: bool,
     pub is_pointer: bool,
+    pub c_repr_of_convert: Option<CReprOfConvertOverride>,
     pub levels_of_indirection: u32,
+}
+
+pub struct CReprOfConvertOverride {
+    pub convert: syn::Expr,
+}
+
+impl Parse for CReprOfConvertOverride {
+    fn parse(input: &ParseBuffer) -> Result<Self, syn::parse::Error> {
+        let convert = input.parse()?;
+        Ok(Self { convert })
+    }
 }
 
 pub fn parse_field(field: &syn::Field) -> Field {
@@ -60,6 +74,17 @@ pub fn parse_field(field: &syn::Field) -> Field {
         .iter()
         .find(|attr| attr.path.get_ident().map(|it| it.to_string()) == Some("nullable".into()))
         .is_some();
+
+    let c_repr_of_convert = field
+        .attrs
+        .iter()
+        .find(|attr| {
+            attr.path.get_ident().map(|it| it.to_string()) == Some("c_repr_of_convert".into())
+        })
+        .map(|attr| {
+            attr.parse_args()
+                .expect("Could not parse attributes of c_repr_of_convert")
+        });
 
     let is_string_field = match &field.ty {
         syn::Type::Ptr(ptr_t) => {
@@ -89,6 +114,7 @@ pub fn parse_field(field: &syn::Field) -> Field {
         is_nullable: is_nullable_field,
         is_string: is_string_field,
         is_pointer: is_ptr_field,
+        c_repr_of_convert,
         levels_of_indirection,
         type_params: extracted_type_params,
     }
