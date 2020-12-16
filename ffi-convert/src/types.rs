@@ -68,7 +68,7 @@ impl CDrop for CStringArray {
                 self.data as *mut *mut libc::c_char,
                 self.size as usize,
             ));
-            for p in y.into_iter() {
+            for p in y.iter() {
                 let _ = CString::from_raw_pointer(*p)?; // let's not panic if we fail here
             }
         };
@@ -137,7 +137,7 @@ impl<U: CReprOf<V> + CDrop, V> CReprOf<Vec<V>> for CArray<U> {
                 Box::into_raw(
                     input
                         .into_iter()
-                        .map(|item| U::c_repr_of(item))
+                        .map(U::c_repr_of)
                         .collect::<Result<Vec<_>, CReprOfError>>()
                         .expect("Could not convert to C representation")
                         .into_boxed_slice(),
