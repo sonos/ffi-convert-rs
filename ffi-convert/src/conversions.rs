@@ -131,34 +131,34 @@ pub struct UnexpectedNullPointerError;
 /// The `from_raw_pointer` effectively takes back ownership of the pointer. If you didn't create the
 /// pointer yourself, please use the `as_ref` method on the raw pointer to borrow it
 pub trait RawPointerConverter<T>: Sized {
-    /// Create a raw pointer from the value and leak it, you should use [`from_raw_pointer`] or
+    /// Creates a raw pointer from the value and leaks it, you should use [`from_raw_pointer`] or
     /// [`drop_raw_pointer`] to free the value when you're done with it.
     fn into_raw_pointer(self) -> *const T;
-    /// Create a mutable raw pointer from the value and leak it, you should use
+    /// Creates a mutable raw pointer from the value and leaks it, you should use
     /// [`from_raw_pointer_mut`] or [`drop_raw_pointer_mut`] to free the value when you're done
     /// with it.
     fn into_raw_pointer_mut(self) -> *mut T;
-    /// Take back control of a raw pointer created by [`into_raw_pointer`].
+    /// Takes back control of a raw pointer created by [`into_raw_pointer`].
     /// # Safety
     /// This method is unsafe because passing it a pointer that was not created by
     /// [`into_raw_pointer`] can lead to memory problems. Also note that passing the same pointer
     /// twice to this function will probably result in a double free
     unsafe fn from_raw_pointer(input: *const T) -> Result<Self, UnexpectedNullPointerError>;
-    /// Take back control of a raw pointer created by [`into_raw_pointer_mut`].
+    /// Takes back control of a raw pointer created by [`into_raw_pointer_mut`].
     /// # Safety
     /// This method is unsafe because passing it a pointer that was not created by
     /// [`into_raw_pointer_mut`] can lead to memory problems. Also note that passing the same
     /// pointer twice to this function will probably result in a double free
     unsafe fn from_raw_pointer_mut(input: *mut T) -> Result<Self, UnexpectedNullPointerError>;
 
-    /// Take back control of a raw pointer created by [`into_raw_pointer`] and drop it.
+    /// Takes back control of a raw pointer created by [`into_raw_pointer`] and drop it.
     /// # Safety
-    /// This method is unsafe for the same reasons a [`from_raw_pointer`]
+    /// This method is unsafe for the same reasons as [`from_raw_pointer`]
     unsafe fn drop_raw_pointer(input: *const T) -> Result<(), UnexpectedNullPointerError> {
         Self::from_raw_pointer(input).map(|_| ())
     }
 
-    /// Take back control of a raw pointer created by [`into_raw_pointer_mut`] and drop it.
+    /// Takes back control of a raw pointer created by [`into_raw_pointer_mut`] and drops it.
     /// # Safety
     /// This method is unsafe for the same reasons a [`from_raw_pointer_mut`]
     unsafe fn drop_raw_pointer_mut(input: *mut T) -> Result<(), UnexpectedNullPointerError> {
@@ -203,7 +203,7 @@ pub trait RawBorrow<T> {
     unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, UnexpectedNullPointerError>;
 }
 
-/// Trait to create mutable borrowed references to type T, from a raw pointer to a T.Note that this
+/// Trait to create mutable borrowed references to type T, from a raw pointer to a T. Note that this
 /// is implemented for all types.
 pub trait RawBorrowMut<T> {
     /// Get a mutable reference on the value behind the pointer or return an error if the pointer is
