@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 
 use quote::quote;
 
-use crate::utils::{parse_struct_fields, parse_target_type, CReprOfConvertOverride, Field};
+use crate::utils::{parse_struct_fields, parse_target_type, Field};
 
 pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     let struct_name = &input.ident;
@@ -14,6 +14,7 @@ pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
         .map(|field| {
             let Field {
                 name: field_name,
+                target_name: target_field_name,
                 ref field_type,
                 ..
             } = field;
@@ -32,16 +33,16 @@ pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
 
             conversion = if field.is_nullable {
                 quote!(
-                    #field_name: if let Some(field) = input.#field_name {
+                    #field_name: if let Some(field) = input.#target_field_name {
                         #conversion
                     } else {
                         std::ptr::null() as _
                     }
                 )
             } else {
-                quote!(#field_name: { let field = input.#field_name ; #conversion })
+                quote!(#field_name: { let field = input.#target_field_name ; #conversion })
             };
-            if let Some(CReprOfConvertOverride { convert, .. }) = &field.c_repr_of_convert {
+            if let Some(convert) = &field.c_repr_of_convert {
                 quote!(#field_name: #convert)
             } else {
                 conversion

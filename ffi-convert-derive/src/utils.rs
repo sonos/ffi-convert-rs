@@ -28,30 +28,52 @@ pub fn parse_struct_fields(data: &syn::Data) -> Vec<Field> {
     }
 }
 
-pub struct Field<'a> {
-    pub name: &'a syn::Ident,
-    pub field_type: syn::TypePath,
-    pub type_params: Option<syn::AngleBracketedGenericArguments>,
-    pub is_nullable: bool,
-    pub is_string: bool,
-    pub is_pointer: bool,
-    pub c_repr_of_convert: Option<CReprOfConvertOverride>,
-    pub levels_of_indirection: u32,
-}
-
-pub struct CReprOfConvertOverride {
+struct CReprOfConvertOverrideArgs {
     pub convert: syn::Expr,
 }
 
-impl Parse for CReprOfConvertOverride {
+impl<'a> Parse for CReprOfConvertOverrideArgs {
     fn parse(input: &ParseBuffer) -> Result<Self, syn::parse::Error> {
         let convert = input.parse()?;
         Ok(Self { convert })
     }
 }
 
+struct TargetNameArgs {
+    pub name: syn::Ident,
+}
+
+impl<'a> Parse for TargetNameArgs {
+    fn parse(input: &ParseBuffer) -> Result<Self, syn::parse::Error> {
+        let name = input.parse()?;
+        Ok(Self { name })
+    }
+}
+
+pub struct Field<'a> {
+    pub name: &'a syn::Ident,
+    pub target_name: syn::Ident,
+    pub field_type: syn::TypePath,
+    pub type_params: Option<syn::AngleBracketedGenericArguments>,
+    pub is_nullable: bool,
+    pub is_string: bool,
+    pub is_pointer: bool,
+    pub c_repr_of_convert: Option<syn::Expr>,
+    pub levels_of_indirection: u32,
+}
+
 pub fn parse_field(field: &syn::Field) -> Field {
-    let field_name = field.ident.as_ref().expect("Field should have an ident");
+    let name = field.ident.as_ref().expect("Field should have an ident");
+
+    let target_name = field
+        .attrs
+        .iter()
+        .find(|attr| attr.path.get_ident().map(|it| it.to_string()) == Some("target_name".into()))
+        .map(|attr| {
+            attr.parse_args()
+                .expect("Could not parse attributes of c_repr_of_convert")
+        })
+        .unwrap_or_else(|| name.clone());
 
     let mut inner_field_type: syn::Type = field.ty.clone();
     let mut levels_of_indirection: u32 = 0;
@@ -61,12 +83,12 @@ pub fn parse_field(field: &syn::Field) -> Field {
         levels_of_indirection += 1;
     }
 
-    let (field_type, extracted_type_params) = match inner_field_type {
+    let (field_type, type_params) = match inner_field_type {
         syn::Type::Path(type_path) => generic_path_to_concrete_type_path(type_path),
         _ => panic!("Field type used in this struct is not supported by the proc macro"),
     };
 
-    let is_nullable_field = field
+    let is_nullable = field
         .attrs
         .iter()
         .any(|attr| attr.path.get_ident().map(|it| it.to_string()) == Some("nullable".into()));
@@ -82,7 +104,7 @@ pub fn parse_field(field: &syn::Field) -> Field {
                 .expect("Could not parse attributes of c_repr_of_convert")
         });
 
-    let is_string_field = match &field.ty {
+    let is_string = match &field.ty {
         syn::Type::Ptr(ptr_t) => {
             match &*ptr_t.elem {
                 syn::Type::Path(path_t) => {
@@ -99,17 +121,18 @@ pub fn parse_field(field: &syn::Field) -> Field {
         _ => false,
     };
 
-    let is_ptr_field = matches!(&field.ty, syn::Type::Ptr(_));
+    let is_pointer = matches!(&field.ty, syn::Type::Ptr(_));
 
     Field {
-        name: field_name,
+        name,
+        target_name,
         field_type,
-        is_nullable: is_nullable_field,
-        is_string: is_string_field,
-        is_pointer: is_ptr_field,
+        is_nullable,
+        is_string,
+        is_pointer,
         c_repr_of_convert,
         levels_of_indirection,
-        type_params: extracted_type_params,
+        type_params,
     }
 }
 

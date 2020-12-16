@@ -14,7 +14,10 @@ use creprof::impl_creprof_macro;
 use proc_macro::TokenStream;
 use rawpointerconverter::impl_rawpointerconverter_macro;
 
-#[proc_macro_derive(CReprOf, attributes(target_type, nullable, c_repr_of_convert))]
+#[proc_macro_derive(
+    CReprOf,
+    attributes(target_type, nullable, c_repr_of_convert, target_name)
+)]
 pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
     impl_creprof_macro(&ast)
@@ -22,7 +25,13 @@ pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
 
 #[proc_macro_derive(
     AsRust,
-    attributes(target_type, nullable, as_rust_extra_field, as_rust_ignore)
+    attributes(
+        target_type,
+        nullable,
+        as_rust_extra_field,
+        as_rust_ignore,
+        target_name
+    )
 )]
 pub fn asrust_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
