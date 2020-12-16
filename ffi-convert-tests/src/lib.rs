@@ -45,6 +45,7 @@ pub struct Pancake {
     pub range: Range<usize>,
     pub some_futile_info: Option<String>,
     pub flattened_range: Range<i64>,
+    pub field_with_specific_rust_name: String,
 }
 
 #[repr(C)]
@@ -71,6 +72,8 @@ pub struct CPancake {
     flattened_range_start: i64,
     #[c_repr_of_convert(input.flattened_range.end)]
     flattened_range_end: i64,
+    #[target_name(field_with_specific_rust_name)]
+    pub field_with_specific_c_name: *const libc::c_char,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -170,6 +173,7 @@ mod tests {
             range: Range { start: 20, end: 30 },
             some_futile_info: None,
             flattened_range: Range { start: 42, end: 64 },
+            field_with_specific_rust_name: "renamed field".to_string(),
         }
     });
 
@@ -193,6 +197,7 @@ mod tests {
             },
             some_futile_info: None,
             flattened_range: Range { start: 42, end: 64 },
+            field_with_specific_rust_name: "renamed field".to_string(),
         }
     });
 }

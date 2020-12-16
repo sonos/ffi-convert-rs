@@ -14,6 +14,7 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
         .filter_map(|field| {
             let Field {
                 name: field_name,
+                target_name: target_field_name,
                 ref field_type,
                 ..
             } = field;
@@ -45,7 +46,7 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
 
             conversion = if field.is_nullable {
                 quote!(
-                    #field_name: if !self.#field_name.is_null() {
+                    #target_field_name: if !self.#field_name.is_null() {
                         Some(#conversion)
                     } else {
                         None
@@ -53,7 +54,7 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
                 )
             } else {
                 quote!(
-                    #field_name: #conversion
+                    #target_field_name: #conversion
                 )
             };
             if field.c_repr_of_convert.is_some() {
