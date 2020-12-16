@@ -1,5 +1,6 @@
 use std::ffi::NulError;
 use std::str::Utf8Error;
+
 use thiserror::Error;
 
 macro_rules! impl_c_repr_of_for {
@@ -72,14 +73,6 @@ macro_rules! impl_rawpointerconverter_for {
     };
 }
 
-pub fn point_to_string(
-    pointer: *mut *const libc::c_char,
-    string: String,
-) -> Result<(), CReprOfError> {
-    unsafe { *pointer = std::ffi::CString::c_repr_of(string)?.into_raw_pointer() }
-    Ok(())
-}
-
 #[derive(Error, Debug)]
 pub enum CReprOfError {
     #[error("A string contains a nul bit")]
@@ -89,7 +82,7 @@ pub enum CReprOfError {
 }
 
 /// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
-/// type that can be created from an object of this type.
+/// type that can be created from an value of this type.
 pub trait CReprOf<T>: Sized + CDrop {
     fn c_repr_of(input: T) -> Result<Self, CReprOfError>;
 }
@@ -138,15 +131,36 @@ pub struct UnexpectedNullPointerError;
 /// The `from_raw_pointer` effectively takes back ownership of the pointer. If you didn't create the
 /// pointer yourself, please use the `as_ref` method on the raw pointer to borrow it
 pub trait RawPointerConverter<T>: Sized {
+    /// Create a raw pointer from the value and leak it, you should use [`from_raw_pointer`] or
+    /// [`drop_raw_pointer`] to free the value when you're done with it.
     fn into_raw_pointer(self) -> *const T;
+    /// Create a mutable raw pointer from the value and leak it, you should use
+    /// [`from_raw_pointer_mut`] or [`drop_raw_pointer_mut`] to free the value when you're done
+    /// with it.
     fn into_raw_pointer_mut(self) -> *mut T;
+    /// Take back control of a raw pointer created by [`into_raw_pointer`].
+    /// # Safety
+    /// This method is unsafe because passing it a pointer that was not created by
+    /// [`into_raw_pointer`] can lead to memory problems. Also note that passing the same pointer
+    /// twice to this function will probably result in a double free
     unsafe fn from_raw_pointer(input: *const T) -> Result<Self, UnexpectedNullPointerError>;
+    /// Take back control of a raw pointer created by [`into_raw_pointer_mut`].
+    /// # Safety
+    /// This method is unsafe because passing it a pointer that was not created by
+    /// [`into_raw_pointer_mut`] can lead to memory problems. Also note that passing the same
+    /// pointer twice to this function will probably result in a double free
     unsafe fn from_raw_pointer_mut(input: *mut T) -> Result<Self, UnexpectedNullPointerError>;
 
+    /// Take back control of a raw pointer created by [`into_raw_pointer`] and drop it.
+    /// # Safety
+    /// This method is unsafe for the same reasons a [`from_raw_pointer`]
     unsafe fn drop_raw_pointer(input: *const T) -> Result<(), UnexpectedNullPointerError> {
         Self::from_raw_pointer(input).map(|_| ())
     }
 
+    /// Take back control of a raw pointer created by [`into_raw_pointer_mut`] and drop it.
+    /// # Safety
+    /// This method is unsafe for the same reasons a [`from_raw_pointer_mut`]
     unsafe fn drop_raw_pointer_mut(input: *mut T) -> Result<(), UnexpectedNullPointerError> {
         Self::from_raw_pointer_mut(input).map(|_| ())
     }
@@ -180,13 +194,22 @@ pub unsafe fn take_back_from_raw_pointer_mut<T>(
     }
 }
 
-/// Trait to create borrowed references to type T, from a raw pointer to a T
+/// Trait to create borrowed references to type T, from a raw pointer to a T. Note that this is
+/// implemented for all types.
 pub trait RawBorrow<T> {
+    /// Get a reference on the value behind the pointer or return an error if the pointer is `null`.
+    /// # Safety
+    /// As this is using [`core::pointer::as_ref()`] this is unsafe for exactly the same reasons.
     unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, UnexpectedNullPointerError>;
 }
 
-/// Trait to create mutable borrowed references to type T, from a raw pointer to a T
+/// Trait to create mutable borrowed references to type T, from a raw pointer to a T.Note that this
+/// is implemented for all types.
 pub trait RawBorrowMut<T> {
+    /// Get a mutable reference on the value behind the pointer or return an error if the pointer is
+    /// `null`.
+    /// # Safety
+    /// As this is using [`core::pointer::as_ref()`] this is unsafe for exactly the same reasons.
     unsafe fn raw_borrow_mut<'a>(input: *mut T)
         -> Result<&'a mut Self, UnexpectedNullPointerError>;
 }
@@ -194,7 +217,7 @@ pub trait RawBorrowMut<T> {
 /// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
 impl<T> RawBorrow<T> for T {
     unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, UnexpectedNullPointerError> {
-        input.as_ref().ok_or_else(|| UnexpectedNullPointerError)
+        input.as_ref().ok_or(UnexpectedNullPointerError)
     }
 }
 
@@ -203,7 +226,7 @@ impl<T> RawBorrowMut<T> for T {
     unsafe fn raw_borrow_mut<'a>(
         input: *mut T,
     ) -> Result<&'a mut Self, UnexpectedNullPointerError> {
-        input.as_mut().ok_or_else(|| UnexpectedNullPointerError)
+        input.as_mut().ok_or(UnexpectedNullPointerError)
     }
 }
 

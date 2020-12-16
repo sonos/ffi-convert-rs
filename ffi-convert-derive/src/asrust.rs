@@ -19,8 +19,12 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
             } = field;
 
             if field.levels_of_indirection > 1 && !field.is_nullable {
-                panic!(format!("The CReprOf, AsRust, and CDrop traits cannot be derived automatically : The field {} is a pointer field has too many levels of indirection ({} in this case).\
-                \nPlease implements those traits manually.", field_name, field.levels_of_indirection))
+                panic!(format!(
+                    "The CReprOf, AsRust, and CDrop traits cannot be derived automatically: \
+                    The field {} is a pointer field has too many levels of indirection \
+                    ({} in this case). Please implements those traits manually.",
+                    field_name, field.levels_of_indirection
+                ))
             }
 
             let mut conversion = if field.is_string {
@@ -28,17 +32,15 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
                     use ffi_convert::RawBorrow;
                     unsafe { std::ffi::CStr::raw_borrow(self.#field_name) }?.as_rust()?
                 })
+            } else if field.is_pointer {
+                quote!( {
+                        let ref_to_struct = unsafe { #field_type::raw_borrow(self.#field_name)? };
+                        let converted_struct = ref_to_struct.as_rust()?;
+                        converted_struct
+                    }
+                )
             } else {
-                if field.is_pointer {
-                    quote!( {
-                            let ref_to_struct = unsafe { #field_type::raw_borrow(self.#field_name)? };
-                            let converted_struct = ref_to_struct.as_rust()?;
-                            converted_struct
-                        }
-                    )
-                } else {
-                    quote!(self.#field_name.as_rust()?)
-                }
+                quote!(self.#field_name.as_rust()?)
             };
 
             conversion = if field.is_nullable {

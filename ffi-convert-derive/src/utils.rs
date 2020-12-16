@@ -1,6 +1,6 @@
 use syn::parse::{Parse, ParseBuffer};
 
-pub fn parse_target_type(attrs: &Vec<syn::Attribute>) -> syn::Path {
+pub fn parse_target_type(attrs: &[syn::Attribute]) -> syn::Path {
     let target_type_attribute = attrs
         .iter()
         .find(|attribute| {
@@ -11,13 +11,10 @@ pub fn parse_target_type(attrs: &Vec<syn::Attribute>) -> syn::Path {
     target_type_attribute.parse_args().unwrap()
 }
 
-pub fn parse_no_drop_impl_flag(attrs: &Vec<syn::Attribute>) -> bool {
-    attrs
-        .iter()
-        .find(|attribute| {
-            attribute.path.get_ident().map(|it| it.to_string()) == Some("no_drop_impl".to_string())
-        })
-        .is_some()
+pub fn parse_no_drop_impl_flag(attrs: &[syn::Attribute]) -> bool {
+    attrs.iter().any(|attribute| {
+        attribute.path.get_ident().map(|it| it.to_string()) == Some("no_drop_impl".to_string())
+    })
 }
 
 pub fn parse_struct_fields(data: &syn::Data) -> Vec<Field> {
@@ -72,8 +69,7 @@ pub fn parse_field(field: &syn::Field) -> Field {
     let is_nullable_field = field
         .attrs
         .iter()
-        .find(|attr| attr.path.get_ident().map(|it| it.to_string()) == Some("nullable".into()))
-        .is_some();
+        .any(|attr| attr.path.get_ident().map(|it| it.to_string()) == Some("nullable".into()));
 
     let c_repr_of_convert = field
         .attrs
@@ -103,10 +99,7 @@ pub fn parse_field(field: &syn::Field) -> Field {
         _ => false,
     };
 
-    let is_ptr_field = match &field.ty {
-        syn::Type::Ptr(_) => true,
-        _ => false,
-    };
+    let is_ptr_field = matches!(&field.ty, syn::Type::Ptr(_));
 
     Field {
         name: field_name,
@@ -128,10 +121,9 @@ pub fn parse_field(field: &syn::Field) -> Field {
 /// `(std::module1::module2::Vec`, `Hello`)`
 ///
 pub fn generic_path_to_concrete_type_path(
-    path: syn::TypePath,
+    mut path: syn::TypePath,
 ) -> (syn::TypePath, Option<syn::AngleBracketedGenericArguments>) {
-    let mut path_mut = path.clone();
-    let last_seg: Option<&mut syn::PathSegment> = path_mut.path.segments.last_mut();
+    let last_seg: Option<&mut syn::PathSegment> = path.path.segments.last_mut();
 
     if let Some(last_segment) = last_seg {
         if let syn::PathArguments::AngleBracketed(ref bracketed_type_params) =
@@ -139,19 +131,20 @@ pub fn generic_path_to_concrete_type_path(
         {
             let extracted_type_params = (*bracketed_type_params).clone();
             last_segment.arguments = syn::PathArguments::None;
-            (path_mut, Some(extracted_type_params))
+            (path, Some(extracted_type_params))
         } else {
-            (path_mut, None)
+            (path, None)
         }
     } else {
-        panic!("The field with type : {:?} is invalid. No segments on the TypePath")
+        panic!("Invalid type path: no segments on the TypePath")
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use syn::TypePath;
+
+    use super::*;
 
     #[test]
     fn test_type_parameter_extraction() {

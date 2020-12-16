@@ -29,7 +29,7 @@ pub fn impl_cdrop_macro(input: &syn::DeriveInput) -> TokenStream {
                 quote!()
             };
 
-            let conversion = if field.is_nullable {
+            if field.is_nullable {
                 quote!(
                     if !self.#field_name.is_null() {
                        # drop_field
@@ -37,8 +37,7 @@ pub fn impl_cdrop_macro(input: &syn::DeriveInput) -> TokenStream {
                 )
             } else {
                 drop_field
-            };
-            conversion
+            }
         })
         .collect::<Vec<_>>();
 
