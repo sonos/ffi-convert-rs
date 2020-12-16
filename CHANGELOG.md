@@ -15,13 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - `RawPointerConverter` no longer has a blanket implementation for all types (this could to easily be misused leading to nasty errors), the trait as been reworked to include mut variants, and a custom derive has been added for it
 
 ### Fixed
- - Missing `Drop` implementation for CStringArray causing memory leaks
+ - Missing `Drop` implementation for `CStringArray` causing memory leaks
 
 ### Removed
  - Removed the `point_to_string` legacy function (this should have been marked `unsafe` and has no place in this crate)
 
 
-## [0.3.0] - 2017-10-05
+## [0.3.0] - 2020-10-05
 ### Added
  - `CReprOf`, `CDrop` and `AsRust` implementations for `bool`
 ### Fixed
@@ -31,27 +31,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
  - Legacy conversion macros, use directly the traits instead
  
-## [0.2.2] - 2017-06-15
+## [0.2.2] - 2020-06-15
 ### Added
  - `Debug` impl for `CArray<T>`
 
-## [0.2.1] - 2017-04-08
+## [0.2.1] - 2020-04-08
 ### Fixed
  - `CDrop` custom derive now honors the `#[nullable]` field attribute
 
-## [0.2.0] - 2017-03-32
+## [0.2.0] - 2020-03-32
 ### Added
  - `CRange` a struct representing a `Range` with implementations for `CReprOf`, `CDrop` and `AsRust`
 
-## [0.1.2] - 2017-03-23
+## [0.1.2] - 2020-03-23
 ### Fixed
  - use fully qualified names in macros
 
-## [0.1.1] - 2017-03-19
+## [0.1.1] - 2020-03-19
 ### Fixed
  - double free on pointer fields
 
-## [0.1.0] - 2017-03-17
+## [0.1.0] - 2020-03-17
 ### Added
  - first release
 
