@@ -4,7 +4,7 @@
 [![ffi-convert documentation](https://docs.rs/ffi-convert/badge.svg)](https://docs.rs/ffi-convert/)
 
 **A collection of utilities (functions, traits, data structures, etc ...) to ease conversion between Rust and C-compatible data structures.**
-You can learn more about open source project at Sonos [here](https://tech-blog.sonos.com/posts/three-open-source-sonos-projects-in-rust/) and the documentation for `ffi-convert` [here](https://docs.rs/ffi-convert/0.3.0/ffi_convert/). 
+You can learn more about open source project at Sonos [here](https://tech-blog.sonos.com/posts/three-open-source-sonos-projects-in-rust/) and the documentation for `ffi-convert` [here](https://docs.rs/ffi-convert). 
 
 ## License
 
