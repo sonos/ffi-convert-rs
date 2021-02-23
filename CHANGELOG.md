@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
  - `bool` in Rust is no longer converted to `u8` in C. Instead it is converted to `bool`, which is guaranteed to be the same as `_Bool` in C.
+ - The `size` field of `CStringArray` is now an `usize`
 
 ## [0.4.0] - 2020-12-17
 ### Added
