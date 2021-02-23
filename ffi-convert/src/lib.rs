@@ -1,15 +1,15 @@
 //! A collection of utilities (traits, data structures, conversion functions, etc ...) to ease conversion between Rust and C-compatible data structures.
 //!
-//! Through two **conversion traits**, **`CReprOf`** and **`AsRust`**, this crate provides a framework to convert idiomatic Rust structs to C-compatible structs that can pass through an FFI boundary, and conversely.
+//! Through two **conversion traits**, [`CReprOf`] and [`AsRust`], this crate provides a framework to convert idiomatic Rust structs to C-compatible structs that can pass through an FFI boundary, and conversely.
 //! They ensure that the developer uses best practices when performing the conversion in both directions (ownership-wise).
 //!
 //! The crate also provides a collection of useful utility functions and traits to perform conversions of types.
-//! It goes hand in hand with the `ffi-convert-derive` crate as it provides an **automatic derivation** of the `CReprOf` and `AsRust` trait.
+//! It goes hand in hand with the `ffi-convert-derive` crate as it provides an **automatic derivation** of the [`CReprOf`] and [`AsRust`] trait.
 //!
 //! # Usage
 //! When dealing with an FFI frontier, the general philosophy of the crate is :  
-//! - When receiving pointers to structs created by C code, the struct is immediately converted to an owned, idiomatic Rust struct through the use of the `AsRust` trait.
-//! - To send an idiomatic, owned Rust struct to C code, the struct is converted to C-compatible representation using the CReprOf trait.
+//! - When receiving pointers to structs created by C code, the struct is immediately converted to an owned (via a copy), idiomatic Rust struct through the use of the [`AsRust`] trait.
+//! - To send an idiomatic, owned Rust struct to C code, the struct is converted to C-compatible representation using the [`CReprOf`] trait.
 //!
 //! ## Example
 //!
@@ -94,13 +94,14 @@
 //!
 //! The RawPointerConverter trait is implemented to perform the conversion of a C-like struct to a raw-pointer to this C-like structure (and conversely).
 //! Here, it is used behind the scene to convert a `CSauce` struct to a pointer to a raw pointer to CSause struct : `*const CSauce`
-//! (needed behind the scenes when the `CReprOf` trait is derived for `CPizza`).
+//! (needed behind the scenes when the [`CReprOf`] trait is derived for `CPizza`).
 //!
 //! You can now pass the `CPizza` struct through your FFI boundary !
 //!
 
 //! ## Types representations mapping
 //!
+//! `T : CReprOf<U> + AsRust<U>`
 //! <table>
 //!     <thead>
 //!         <tr>
@@ -116,24 +117,43 @@
 //!             <td><code>*const libc::c_char</code></td>
 //!         </tr>
 //!         <tr>
-//!             <td><code>const T</code></td>
-//!             <td><code>Option<T></code></td>
+//!             <td><code>const T*</code></td>
+//!             <td><code>U</code></td>
+//!             <td><code>*const T</code></td>
+//!         </tr>
+//!         <tr>
+//!             <td><code>T*</code></td>
+//!             <td><code>U</code></td>
+//!             <td><code>*mut T</code></td>
+//!         </tr>
+//!         <tr>
+//!             <td><code>T</code></td>
+//!             <td><code>U</code></td>
+//!             <td><code>T</code></td>
+//!         </tr>
+//!         <tr>
+//!             <td><code>const T*</code></td>
+//!             <td><code>Option&lt;U&gt;</code></td>
 //!             <td><code>*const T</code> (with <code>#[nullable]</code> field annotation)</td>
 //!         </tr>
 //!         <tr>
 //!             <td><code>CArrayT</code></td>
-//!             <td><code>Vec<T></code></td>
-//!             <td><code>CArray<T></code></td>
+//!             <td><code>Vec&lt;U&gt;</code></td>
+//!             <td><code>CArray&lt;T&gt;</code></td>
+//!         </tr>
+//!         <tr>
+//!             <td><code>CStringArray</code></td>
+//!             <td><code>Vec&lt;String&gt;</code></td>
+//!             <td><code>CStringArray</code></td>
+//!         </tr>
+//!         <tr>
+//!             <td><code>CRangeT</code></td>
+//!             <td><code>Range&lt;U&gt;</code></td>
+//!             <td><code>CRange&lt;T&gt;</code></td>
 //!         </tr>
 //!     </tbody>
 //! </table>
 //!
-//! ```ignore
-//! typedef struct {
-//! const T *values; // Pointer to the value of the list
-//! int32_t size; // Number of T values in the list
-//! } CArrayT;
-//! ```
 
 //! ## The CReprOf trait
 
@@ -154,7 +174,7 @@
 //! > When trying to convert a `repr(C)` struct that originated from C, the philosophy is to immediately convert
 //! > the struct to an **owned** idiomatic representation of the struct via the AsRust trait.
 
-//! The `AsRust` trait allows to create an idiomatic Rust struct from a C-compatible struct :
+//! The [`AsRust`] trait allows to create an idiomatic Rust struct from a C-compatible struct :
 
 //! ```
 //! # use ffi_convert::{AsRustError, CDrop};
@@ -178,8 +198,6 @@
 //!
 //! This conversion trait comes in handy for C-like struct that have fields that points to other structs.
 
-//! ## Caveats with derivation of CReprOf and AsRust traits
-//!
 pub use ffi_convert_derive::*;
 
 mod conversions;
