@@ -46,6 +46,7 @@ pub struct Pancake {
     pub some_futile_info: Option<String>,
     pub flattened_range: Range<i64>,
     pub field_with_specific_rust_name: String,
+    pub pancake_data: Option<Vec<u8>>,
 }
 
 #[repr(C)]
@@ -66,7 +67,7 @@ pub struct CPancake {
     toppings: *const CArray<CTopping>,
     #[nullable]
     layers: *const CArray<CLayer>,
-    is_delicious: u8,
+    is_delicious: bool,
     pub range: CRange<i32>,
     #[c_repr_of_convert(input.flattened_range.start)]
     flattened_range_start: i64,
@@ -74,6 +75,8 @@ pub struct CPancake {
     flattened_range_end: i64,
     #[target_name(field_with_specific_rust_name)]
     pub field_with_specific_c_name: *const libc::c_char,
+    #[nullable]
+    pancake_data: *const CArray<u8>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -174,6 +177,7 @@ mod tests {
             some_futile_info: None,
             flattened_range: Range { start: 42, end: 64 },
             field_with_specific_rust_name: "renamed field".to_string(),
+            pancake_data: Some(vec![1, 2, 3]),
         }
     });
 
@@ -198,6 +202,7 @@ mod tests {
             some_futile_info: None,
             flattened_range: Range { start: 42, end: 64 },
             field_with_specific_rust_name: "renamed field".to_string(),
+            pancake_data: None,
         }
     });
 }
