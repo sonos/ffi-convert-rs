@@ -1,6 +1,6 @@
 [package]
 name = "ffi-convert"
-version = "0.5.0-pre"
+version = "0.5.0"
 authors = ["Sonos"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -10,6 +10,6 @@ readme = "../README.md"
 keywords = ["ffi"]
 
 [dependencies]
-ffi-convert-derive = { path = "../ffi-convert-derive" }
+ffi-convert-derive = "0.5.0"
 thiserror = "1.0.20"
 libc = "0.2"

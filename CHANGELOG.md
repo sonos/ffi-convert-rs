@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0]
 ### Added
  - `CDrop` and `CReprOf` are now implemented for `u8` and `i8`.
 
@@ -62,7 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
  - first release
 
-[Unreleased]: https://github.com/sonos/ffi-convert-rs/compare/0.4.0...HEAD
+[0.5.0]: https://github.com/sonos/ffi-convert-rs/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/sonos/ffi-convert-rs/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/sonos/ffi-convert-rs/compare/0.2.2...0.3.0
 [0.2.2]: https://github.com/sonos/ffi-convert-rs/compare/0.2.1...0.2.2
