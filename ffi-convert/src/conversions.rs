@@ -211,7 +211,7 @@ pub trait RawBorrowMut<T> {
     /// # Safety
     /// As this is using `*mut T:as_ref()` this is unsafe for exactly the same reasons.
     unsafe fn raw_borrow_mut<'a>(input: *mut T)
-        -> Result<&'a mut Self, UnexpectedNullPointerError>;
+                                 -> Result<&'a mut Self, UnexpectedNullPointerError>;
 }
 
 /// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
@@ -360,3 +360,21 @@ impl_rawpointerconverter_for!(u64);
 impl_rawpointerconverter_for!(f32);
 impl_rawpointerconverter_for!(f64);
 impl_rawpointerconverter_for!(bool);
+
+impl<T, const N: usize> CReprOf<[T; N]> for [T; N] {
+    fn c_repr_of(input: [T; N]) -> Result<[T; N], CReprOfError> {
+        Ok(input)
+    }
+}
+
+impl<T, const N: usize> CDrop for [T; N] {
+    fn do_drop(&mut self) -> Result<(), CDropError> {
+        Ok(())
+    }
+}
+
+impl<T: Clone, const N: usize> AsRust<[T; N]> for [T; N] {
+    fn as_rust(&self) -> Result<[T; N], AsRustError> {
+        Ok(self.clone())
+    }
+}
