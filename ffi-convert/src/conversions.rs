@@ -361,20 +361,52 @@ impl_rawpointerconverter_for!(f32);
 impl_rawpointerconverter_for!(f64);
 impl_rawpointerconverter_for!(bool);
 
-impl<T, const N: usize> CReprOf<[T; N]> for [T; N] {
-    fn c_repr_of(input: [T; N]) -> Result<[T; N], CReprOfError> {
-        Ok(input)
+impl<U, T: CReprOf<U>, const N: usize> CReprOf<[U; N]> for [T; N] where [U; N]: CDrop {
+    fn c_repr_of(input: [U; N]) -> Result<[T; N], CReprOfError> {
+        // TODO passing through a Vec here is a bit ugly, but as the conversion call may fail,
+        // TODO we don't want tobe in the case where we're in the middle of the conversion of the
+        // TODO array and we encounter an error, hence leaving the array partially uninitialised for
+        // TODO rust to try to cleanup. the try_map unstable method on array would be nice here
+        let result_vec: Result<Vec<T>, CReprOfError> = input.into_iter().map(T::c_repr_of).collect();
+        let vec = result_vec?;
+
+        assert_eq!(vec.len(), N);
+
+        let mut result: [T; N] = unsafe { std::mem::zeroed() }; // we'll replace everything so "should" be good
+
+        for (i, t) in vec.into_iter().enumerate() {
+            result[i] = t;
+        }
+
+        Ok(result)
     }
 }
 
-impl<T, const N: usize> CDrop for [T; N] {
+impl<T: CDrop, const N: usize> CDrop for [T; N] {
     fn do_drop(&mut self) -> Result<(), CDropError> {
+        let result : Result<Vec<()>, CDropError> = self.iter_mut().map(T::do_drop).collect();
+        result?;
         Ok(())
     }
 }
 
-impl<T: Clone, const N: usize> AsRust<[T; N]> for [T; N] {
+impl<U: AsRust<T>, T, const N: usize> AsRust<[T; N]> for [U; N] {
     fn as_rust(&self) -> Result<[T; N], AsRustError> {
-        Ok(self.clone())
+        // TODO passing through a Vec here is a bit ugly, but as the conversion call may fail,
+        // TODO we don't want tobe in the case where we're in the middle of the conversion of the
+        // TODO array and we encounter an error, hence leaving the array partially uninitialised for
+        // TODO rust to try to cleanup. the try_map unstable method on array would be nice here
+        let result_vec: Result<Vec<T>, AsRustError> = self.iter().map(U::as_rust).collect();
+        let vec = result_vec?;
+
+        assert_eq!(vec.len(), N);
+
+        let mut result: [T; N] = unsafe { std::mem::zeroed() }; // we'll replace everything so "should" be good
+
+        for (i, t) in vec.into_iter().enumerate() {
+            result[i] = t;
+        }
+
+        Ok(result)
     }
 }
