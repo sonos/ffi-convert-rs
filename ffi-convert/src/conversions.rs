@@ -211,7 +211,7 @@ pub trait RawBorrowMut<T> {
     /// # Safety
     /// As this is using `*mut T:as_ref()` this is unsafe for exactly the same reasons.
     unsafe fn raw_borrow_mut<'a>(input: *mut T)
-                                 -> Result<&'a mut Self, UnexpectedNullPointerError>;
+        -> Result<&'a mut Self, UnexpectedNullPointerError>;
 }
 
 /// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
@@ -361,13 +361,17 @@ impl_rawpointerconverter_for!(f32);
 impl_rawpointerconverter_for!(f64);
 impl_rawpointerconverter_for!(bool);
 
-impl<U, T: CReprOf<U>, const N: usize> CReprOf<[U; N]> for [T; N] where [U; N]: CDrop {
+impl<U, T: CReprOf<U>, const N: usize> CReprOf<[U; N]> for [T; N]
+where
+    [U; N]: CDrop,
+{
     fn c_repr_of(input: [U; N]) -> Result<[T; N], CReprOfError> {
         // TODO passing through a Vec here is a bit ugly, but as the conversion call may fail,
         // TODO we don't want tobe in the case where we're in the middle of the conversion of the
         // TODO array and we encounter an error, hence leaving the array partially uninitialised for
         // TODO rust to try to cleanup. the try_map unstable method on array would be nice here
-        let result_vec: Result<Vec<T>, CReprOfError> = input.into_iter().map(T::c_repr_of).collect();
+        let result_vec: Result<Vec<T>, CReprOfError> =
+            input.into_iter().map(T::c_repr_of).collect();
         let vec = result_vec?;
 
         assert_eq!(vec.len(), N);
@@ -384,7 +388,7 @@ impl<U, T: CReprOf<U>, const N: usize> CReprOf<[U; N]> for [T; N] where [U; N]: 
 
 impl<T: CDrop, const N: usize> CDrop for [T; N] {
     fn do_drop(&mut self) -> Result<(), CDropError> {
-        let result : Result<Vec<()>, CDropError> = self.iter_mut().map(T::do_drop).collect();
+        let result: Result<Vec<()>, CDropError> = self.iter_mut().map(T::do_drop).collect();
         result?;
         Ok(())
     }
