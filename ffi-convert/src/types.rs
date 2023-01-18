@@ -62,7 +62,7 @@ impl CReprOf<Vec<String>> for CStringArray {
 
 impl CDrop for CStringArray {
     fn do_drop(&mut self) -> Result<(), CDropError> {
-        let _ = unsafe {
+        unsafe {
             let y = Box::from_raw(std::slice::from_raw_parts_mut(
                 self.data as *mut *mut libc::c_char,
                 self.size,
@@ -70,7 +70,7 @@ impl CDrop for CStringArray {
             for p in y.iter() {
                 let _ = CString::from_raw_pointer(*p)?; // let's not panic if we fail here
             }
-        };
+        }
         Ok(())
     }
 }
@@ -230,7 +230,7 @@ impl<T> RawPointerConverter<CArray<T>> for CArray<T> {
 /// assert_eq!(foo_converted, foo);
 /// ```
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CRange<T> {
     pub start: T,
     pub end: T,

@@ -95,7 +95,7 @@ pub struct CSauce {
     volume: f32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Topping {
     pub amount: i32,
 }
@@ -107,7 +107,7 @@ pub struct CTopping {
     amount: i32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Layer {
     pub number: i32,
     pub subtitle: Option<String>,
@@ -122,7 +122,7 @@ pub struct CLayer {
     subtitle: *const libc::c_char,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Dummy {
     pub count: i32,
     pub describe: String,

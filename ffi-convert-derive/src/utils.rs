@@ -1,5 +1,3 @@
-use syn::parse::{Parse, ParseBuffer};
-
 pub fn parse_target_type(attrs: &[syn::Attribute]) -> syn::Path {
     let target_type_attribute = attrs
         .iter()
@@ -28,29 +26,7 @@ pub fn parse_struct_fields(data: &syn::Data) -> Vec<Field> {
     }
 }
 
-struct CReprOfConvertOverrideArgs {
-    pub convert: syn::Expr,
-}
-
-impl<'a> Parse for CReprOfConvertOverrideArgs {
-    fn parse(input: &ParseBuffer) -> Result<Self, syn::parse::Error> {
-        let convert = input.parse()?;
-        Ok(Self { convert })
-    }
-}
-
-struct TargetNameArgs {
-    pub name: syn::Ident,
-}
-
-impl<'a> Parse for TargetNameArgs {
-    fn parse(input: &ParseBuffer) -> Result<Self, syn::parse::Error> {
-        let name = input.parse()?;
-        Ok(Self { name })
-    }
-}
-
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum TypeArrayOrTypePath {
     TypeArray(syn::TypeArray),
     TypePath(syn::TypePath),
@@ -192,7 +168,9 @@ mod tests {
         assert_eq!(extracted_type_param.unwrap().args.len(), 1);
         assert_eq!(
             transformed_type_path,
-            TypeArrayOrTypePath::TypePath(syn::parse_str::<TypePath>("std::mod1::mod2::Foo").unwrap())
+            TypeArrayOrTypePath::TypePath(
+                syn::parse_str::<TypePath>("std::mod1::mod2::Foo").unwrap()
+            )
         );
     }
 
@@ -205,7 +183,9 @@ mod tests {
 
         assert_eq!(
             transformed_type_path,
-            TypeArrayOrTypePath::TypePath(syn::parse_str::<TypePath>("std::mod1::mod2::Foo").unwrap())
+            TypeArrayOrTypePath::TypePath(
+                syn::parse_str::<TypePath>("std::mod1::mod2::Foo").unwrap()
+            )
         );
         assert_eq!(extracted_type_param.unwrap().args.len(), 2)
     }
@@ -220,7 +200,9 @@ mod tests {
         assert!(extracted_type_params.is_none());
         assert_eq!(
             transformed_path,
-            TypeArrayOrTypePath::TypePath(syn::parse_str::<TypePath>("std::module1::module2::Hello").unwrap())
+            TypeArrayOrTypePath::TypePath(
+                syn::parse_str::<TypePath>("std::module1::module2::Hello").unwrap()
+            )
         )
     }
 
@@ -266,17 +248,18 @@ mod tests {
         assert_eq!(parsed_fields[0].is_string, false);
         assert_eq!(parsed_fields[1].is_string, false);
 
-        let field_type0 = if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[0].field_type {
-            type_path
-        } else {
-            panic!("unexpected type")
-        };
-        let field_type1 = if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[1].field_type {
-            type_path
-        } else {
-            panic!("unexpected type")
-        };
-
+        let field_type0 =
+            if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[0].field_type {
+                type_path
+            } else {
+                panic!("unexpected type")
+            };
+        let field_type1 =
+            if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[1].field_type {
+                type_path
+            } else {
+                panic!("unexpected type")
+            };
 
         let parsed_path_0 = field_type0.path.clone();
         let parsed_path_1 = field_type1.path.clone();
@@ -310,17 +293,18 @@ mod tests {
         assert_eq!(parsed_fields[0].is_string, false);
         assert_eq!(parsed_fields[1].is_string, false);
 
-        let field_type0 = if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[0].field_type {
-            type_path
-        } else {
-            panic!("unexpected type")
-        };
-        let field_type1 = if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[1].field_type {
-            type_path
-        } else {
-            panic!("unexpected type")
-        };
-
+        let field_type0 =
+            if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[0].field_type {
+                type_path
+            } else {
+                panic!("unexpected type")
+            };
+        let field_type1 =
+            if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[1].field_type {
+                type_path
+            } else {
+                panic!("unexpected type")
+            };
 
         let parsed_path_0 = field_type0.path.clone();
         let parsed_path_1 = field_type1.path.clone();

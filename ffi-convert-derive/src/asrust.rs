@@ -20,12 +20,12 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
             } = field;
 
             if field.levels_of_indirection > 1 && !field.is_nullable {
-                panic!(format!(
+                panic!(
                     "The CReprOf, AsRust, and CDrop traits cannot be derived automatically: \
                     The field {} is a pointer field has too many levels of indirection \
                     ({} in this case). Please implements those traits manually.",
                     field_name, field.levels_of_indirection
-                ))
+                )
             }
 
             let mut conversion = if field.is_string {
