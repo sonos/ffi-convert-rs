@@ -1,5 +1,3 @@
-use syn::parse::{Parse, ParseBuffer};
-
 pub fn parse_target_type(attrs: &[syn::Attribute]) -> syn::Path {
     let target_type_attribute = attrs
         .iter()
@@ -28,32 +26,16 @@ pub fn parse_struct_fields(data: &syn::Data) -> Vec<Field> {
     }
 }
 
-struct CReprOfConvertOverrideArgs {
-    pub convert: syn::Expr,
-}
-
-impl<'a> Parse for CReprOfConvertOverrideArgs {
-    fn parse(input: &ParseBuffer) -> Result<Self, syn::parse::Error> {
-        let convert = input.parse()?;
-        Ok(Self { convert })
-    }
-}
-
-struct TargetNameArgs {
-    pub name: syn::Ident,
-}
-
-impl<'a> Parse for TargetNameArgs {
-    fn parse(input: &ParseBuffer) -> Result<Self, syn::parse::Error> {
-        let name = input.parse()?;
-        Ok(Self { name })
-    }
+#[derive(PartialEq, Eq, Debug)]
+pub enum TypeArrayOrTypePath {
+    TypeArray(syn::TypeArray),
+    TypePath(syn::TypePath),
 }
 
 pub struct Field<'a> {
     pub name: &'a syn::Ident,
     pub target_name: syn::Ident,
-    pub field_type: syn::TypePath,
+    pub field_type: TypeArrayOrTypePath,
     pub type_params: Option<syn::AngleBracketedGenericArguments>,
     pub is_nullable: bool,
     pub is_string: bool,
@@ -85,6 +67,7 @@ pub fn parse_field(field: &syn::Field) -> Field {
 
     let (field_type, type_params) = match inner_field_type {
         syn::Type::Path(type_path) => generic_path_to_concrete_type_path(type_path),
+        syn::Type::Array(type_array) => (TypeArrayOrTypePath::TypeArray(type_array), None),
         _ => panic!("Field type used in this struct is not supported by the proc macro"),
     };
 
@@ -145,7 +128,10 @@ pub fn parse_field(field: &syn::Field) -> Field {
 ///
 pub fn generic_path_to_concrete_type_path(
     mut path: syn::TypePath,
-) -> (syn::TypePath, Option<syn::AngleBracketedGenericArguments>) {
+) -> (
+    TypeArrayOrTypePath,
+    Option<syn::AngleBracketedGenericArguments>,
+) {
     let last_seg: Option<&mut syn::PathSegment> = path.path.segments.last_mut();
 
     if let Some(last_segment) = last_seg {
@@ -154,9 +140,12 @@ pub fn generic_path_to_concrete_type_path(
         {
             let extracted_type_params = (*bracketed_type_params).clone();
             last_segment.arguments = syn::PathArguments::None;
-            (path, Some(extracted_type_params))
+            (
+                TypeArrayOrTypePath::TypePath(path),
+                Some(extracted_type_params),
+            )
         } else {
-            (path, None)
+            (TypeArrayOrTypePath::TypePath(path), None)
         }
     } else {
         panic!("Invalid type path: no segments on the TypePath")
@@ -179,7 +168,9 @@ mod tests {
         assert_eq!(extracted_type_param.unwrap().args.len(), 1);
         assert_eq!(
             transformed_type_path,
-            syn::parse_str::<TypePath>("std::mod1::mod2::Foo").unwrap()
+            TypeArrayOrTypePath::TypePath(
+                syn::parse_str::<TypePath>("std::mod1::mod2::Foo").unwrap()
+            )
         );
     }
 
@@ -192,7 +183,9 @@ mod tests {
 
         assert_eq!(
             transformed_type_path,
-            syn::parse_str::<TypePath>("std::mod1::mod2::Foo").unwrap()
+            TypeArrayOrTypePath::TypePath(
+                syn::parse_str::<TypePath>("std::mod1::mod2::Foo").unwrap()
+            )
         );
         assert_eq!(extracted_type_param.unwrap().args.len(), 2)
     }
@@ -207,7 +200,9 @@ mod tests {
         assert!(extracted_type_params.is_none());
         assert_eq!(
             transformed_path,
-            syn::parse_str::<TypePath>("std::module1::module2::Hello").unwrap()
+            TypeArrayOrTypePath::TypePath(
+                syn::parse_str::<TypePath>("std::module1::module2::Hello").unwrap()
+            )
         )
     }
 
@@ -221,7 +216,11 @@ mod tests {
         assert_eq!(parsed_fields[0].is_pointer, true);
         assert_eq!(parsed_fields[0].is_nullable, false);
 
-        assert_eq!(parsed_fields[0].field_type.path.segments.len(), 2);
+        if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[0].field_type {
+            assert_eq!(type_path.path.segments.len(), 2);
+        } else {
+            panic!("Unexpected type")
+        }
     }
 
     #[test]
@@ -249,8 +248,21 @@ mod tests {
         assert_eq!(parsed_fields[0].is_string, false);
         assert_eq!(parsed_fields[1].is_string, false);
 
-        let parsed_path_0 = parsed_fields[0].field_type.path.clone();
-        let parsed_path_1 = parsed_fields[1].field_type.path.clone();
+        let field_type0 =
+            if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[0].field_type {
+                type_path
+            } else {
+                panic!("unexpected type")
+            };
+        let field_type1 =
+            if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[1].field_type {
+                type_path
+            } else {
+                panic!("unexpected type")
+            };
+
+        let parsed_path_0 = field_type0.path.clone();
+        let parsed_path_1 = field_type1.path.clone();
 
         assert_eq!(parsed_path_0.segments.len(), 2);
         assert_eq!(parsed_path_1.segments.len(), 1);
@@ -281,8 +293,21 @@ mod tests {
         assert_eq!(parsed_fields[0].is_string, false);
         assert_eq!(parsed_fields[1].is_string, false);
 
-        let parsed_path_0 = parsed_fields[0].field_type.path.clone();
-        let parsed_path_1 = parsed_fields[1].field_type.path.clone();
+        let field_type0 =
+            if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[0].field_type {
+                type_path
+            } else {
+                panic!("unexpected type")
+            };
+        let field_type1 =
+            if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[1].field_type {
+                type_path
+            } else {
+                panic!("unexpected type")
+            };
+
+        let parsed_path_0 = field_type0.path.clone();
+        let parsed_path_1 = field_type1.path.clone();
 
         assert_eq!(parsed_path_0.segments.len(), 2);
         assert_eq!(parsed_path_1.segments.len(), 1);

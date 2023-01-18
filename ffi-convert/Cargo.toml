@@ -2,7 +2,7 @@
 name = "ffi-convert"
 version = "0.6.0-pre"
 authors = ["Sonos"]
-edition = "2018"
+edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "A collection of utilities to ease conversion between Rust and C-compatible data structures."
 repository = "https://github.com/sonos/ffi-convert-rs"

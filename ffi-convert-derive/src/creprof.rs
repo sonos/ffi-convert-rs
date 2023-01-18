@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 
 use quote::quote;
 
-use crate::utils::{parse_struct_fields, parse_target_type, Field};
+use crate::utils::{parse_struct_fields, parse_target_type, Field, TypeArrayOrTypePath};
 
 pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     let struct_name = &input.ident;
@@ -22,7 +22,14 @@ pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
             let mut conversion = if field.is_string {
                 quote!(std::ffi::CString::c_repr_of(field)?)
             } else {
-                quote!(#field_type::c_repr_of(field)?)
+                match field_type {
+                    TypeArrayOrTypePath::TypeArray(type_array) => {
+                        quote!(<#type_array>::c_repr_of(field)?)
+                    }
+                    TypeArrayOrTypePath::TypePath(type_path) => {
+                        quote!(#type_path::c_repr_of(field)?)
+                    }
+                }
             };
 
             if field.is_pointer {
