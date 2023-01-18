@@ -11,11 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-## [0.5.0]
+## [0.6.0] - 2023-01-18
+### Added
+ - `CDrop` `CReprOf` and `AsRust` are now implemented for fixed size arrays.
+
+### Changed
+ - Updated rust edition to 2021
+
+### Removed
+ - Removed legacy `CReprOfConvertOverrideArgs` and `TargetNameArgs` struct that weren't used in the api anymore
+
+## [0.5.0] - 2021-02-23
 ### Added
  - `CDrop` and `CReprOf` are now implemented for `u8` and `i8`.
 
-### Changed
+### Changed 
  - `bool` in Rust is no longer converted to `u8` in C. Instead it is converted to `bool`, which is guaranteed to be the same as `_Bool` in C.
  - The `size` field of `CStringArray` is now an `usize`
 
