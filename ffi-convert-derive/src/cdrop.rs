@@ -1,4 +1,4 @@
-use crate::utils::{parse_no_drop_impl_flag, parse_struct_fields, Field};
+use crate::utils::{parse_no_drop_impl_flag, parse_struct_fields, Field, TypeArrayOrTypePath};
 use proc_macro::TokenStream;
 use quote::quote;
 
@@ -23,7 +23,14 @@ pub fn impl_cdrop_macro(input: &syn::DeriveInput) -> TokenStream {
                     unsafe { std::ffi::CString::drop_raw_pointer(self.#field_name) }?
                 })
             } else if field.is_pointer {
-                quote!( unsafe { #field_type::drop_raw_pointer(self.#field_name) }? )
+                match field_type {
+                    TypeArrayOrTypePath::TypeArray(type_array) => {
+                        quote!( unsafe { <#type_array>::drop_raw_pointer(self.#field_name) }? )
+                    }
+                    TypeArrayOrTypePath::TypePath(type_path) => {
+                        quote!( unsafe { #type_path::drop_raw_pointer(self.#field_name) }? )
+                    }
+                }
             } else {
                 // the other cases will be handled automatically by rust
                 quote!()

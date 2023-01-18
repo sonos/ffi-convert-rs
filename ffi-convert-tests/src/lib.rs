@@ -37,10 +37,12 @@ pub struct Pancake {
     pub description: Option<String>,
     pub start: f32,
     pub end: Option<f32>,
+    pub float_array: [f32; 4],
     pub dummy: Dummy,
     pub sauce: Option<Sauce>,
     pub toppings: Vec<Topping>,
     pub layers: Option<Vec<Layer>>,
+    pub base_layers: [Layer; 3],
     pub is_delicious: bool,
     pub range: Range<usize>,
     pub some_futile_info: Option<String>,
@@ -61,12 +63,14 @@ pub struct CPancake {
     start: f32,
     #[nullable]
     end: *const f32,
+    float_array: [f32; 4],
     dummy: CDummy,
     #[nullable]
     sauce: *const CSauce,
     toppings: *const CArray<CTopping>,
     #[nullable]
     layers: *const CArray<CLayer>,
+    base_layers: [CLayer; 3],
     is_delicious: bool,
     pub range: CRange<i32>,
     #[c_repr_of_convert(input.flattened_range.start)]
@@ -162,6 +166,7 @@ mod tests {
             description: Some("I'm delicious ! ".to_string()),
             start: 0.0,
             end: Some(2.0),
+            float_array: [1.0, 2.0, 3.0, 4.0],
             dummy: Dummy {
                 count: 2,
                 describe: "yo".to_string(),
@@ -172,6 +177,20 @@ mod tests {
                 number: 1,
                 subtitle: Some(String::from("first layer")),
             }]),
+            base_layers: [
+                Layer {
+                    number: 0,
+                    subtitle: Some(String::from("flour")),
+                },
+                Layer {
+                    number: 1,
+                    subtitle: Some(String::from("dough")),
+                },
+                Layer {
+                    number: 2,
+                    subtitle: Some(String::from("tomato")),
+                },
+            ],
             is_delicious: true,
             range: Range { start: 20, end: 30 },
             some_futile_info: None,
@@ -187,6 +206,7 @@ mod tests {
             description: Some("I'm delicious ! ".to_string()),
             start: 0.0,
             end: None,
+            float_array: [8.0, -1.0, f32::INFINITY, -0.0],
             dummy: Dummy {
                 count: 2,
                 describe: "yo".to_string(),
@@ -194,6 +214,20 @@ mod tests {
             sauce: None,
             toppings: vec![],
             layers: Some(vec![]),
+            base_layers: [
+                Layer {
+                    number: 0,
+                    subtitle: Some(String::from("flour")),
+                },
+                Layer {
+                    number: 1,
+                    subtitle: Some(String::from("dough")),
+                },
+                Layer {
+                    number: 2,
+                    subtitle: Some(String::from("cream")),
+                },
+            ],
             is_delicious: true,
             range: Range {
                 start: 50,

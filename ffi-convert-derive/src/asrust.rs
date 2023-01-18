@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::parse::{Parse, ParseBuffer};
 
-use crate::utils::{parse_struct_fields, parse_target_type, Field};
+use crate::utils::{parse_struct_fields, parse_target_type, Field, TypeArrayOrTypePath};
 
 pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
     let struct_name = &input.ident;
@@ -34,12 +34,23 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
                     unsafe { std::ffi::CStr::raw_borrow(self.#field_name) }?.as_rust()?
                 })
             } else if field.is_pointer {
-                quote!( {
-                        let ref_to_struct = unsafe { #field_type::raw_borrow(self.#field_name)? };
+                match field_type {
+                    TypeArrayOrTypePath::TypeArray(type_array) => {
+                        quote!( {
+                        let ref_to_array = unsafe { <#type_array>::raw_borrow(self.#field_name)? };
+                        let converted_array = ref_to_struct.as_rust()?;
+                        converted_array
+                    })
+                    }
+                    TypeArrayOrTypePath::TypePath(type_path) => {
+                        quote!( {
+                        let ref_to_struct = unsafe { #type_path::raw_borrow(self.#field_name)? };
                         let converted_struct = ref_to_struct.as_rust()?;
                         converted_struct
+                    })
                     }
-                )
+                }
+
             } else {
                 quote!(self.#field_name.as_rust()?)
             };

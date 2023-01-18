@@ -363,7 +363,7 @@ impl_rawpointerconverter_for!(bool);
 
 impl<U, T: CReprOf<U>, const N: usize> CReprOf<[U; N]> for [T; N]
 where
-    [U; N]: CDrop,
+    [T; N]: CDrop,
 {
     fn c_repr_of(input: [U; N]) -> Result<[T; N], CReprOfError> {
         // TODO passing through a Vec here is a bit ugly, but as the conversion call may fail,
