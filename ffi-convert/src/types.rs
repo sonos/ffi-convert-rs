@@ -1,11 +1,14 @@
 //! This module contains definitions of utility types that implement the [`CReprOf`], [`AsRust`], and [`CDrop`] traits.
 //!
 
+use ffi_convert_derive::RawPointerConverter;
+
 use std::any::TypeId;
 use std::ffi::{CStr, CString};
 use std::ops::Range;
 use std::ptr;
 
+use crate as ffi_convert;
 use crate::conversions::*;
 
 /// A utility type to represent arrays of string
@@ -18,7 +21,7 @@ use crate::conversions::*;
 ///
 /// ```
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, RawPointerConverter)]
 pub struct CStringArray {
     /// Pointer to the first element of the array
     pub data: *const *const libc::c_char,
