@@ -118,18 +118,22 @@ pub struct CArray<T> {
 impl<U: AsRust<V> + 'static, V> AsRust<Vec<V>> for CArray<U> {
     fn as_rust(&self) -> Result<Vec<V>, AsRustError> {
         let mut vec = Vec::with_capacity(self.size);
+
+        let values = unsafe { std::slice::from_raw_parts_mut(self.data_ptr as *mut U, self.size) };
+
         if self.size > 0 {
             if is_primitive(TypeId::of::<U>()) {
                 unsafe {
+                    vec.set_len(self.size);
+                }
+                unsafe {
                     ptr::copy(
-                        self.data_ptr as *const V,
+                        values.as_ptr() as *const V,
                         vec.as_mut_ptr() as *mut V,
                         self.size,
                     )
                 };
             } else {
-                let values =
-                    unsafe { std::slice::from_raw_parts_mut(self.data_ptr as *mut U, self.size) };
                 for value in values {
                     vec.push(value.as_rust()?);
                 }
