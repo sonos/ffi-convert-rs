@@ -198,6 +198,8 @@
 //!
 //! This conversion trait comes in handy for C-like struct that have fields that points to other structs.
 
+use std::any::TypeId;
+
 pub use ffi_convert_derive::*;
 
 mod conversions;
@@ -205,3 +207,14 @@ mod types;
 
 pub use conversions::*;
 pub use types::*;
+
+fn is_primitive(id: TypeId) -> bool {
+    id == TypeId::of::<u8>()
+        || id == TypeId::of::<i8>()
+        || id == TypeId::of::<u16>()
+        || id == TypeId::of::<i16>()
+        || id == TypeId::of::<u32>()
+        || id == TypeId::of::<i32>()
+        || id == TypeId::of::<f32>()
+        || id == TypeId::of::<f64>()
+}
