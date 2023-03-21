@@ -3,6 +3,7 @@
 
 use std::any::TypeId;
 use std::ffi::{CStr, CString};
+use std::mem::{self, MaybeUninit};
 use std::ops::Range;
 use std::ptr;
 
@@ -124,15 +125,13 @@ impl<U: AsRust<V> + 'static, V> AsRust<Vec<V>> for CArray<U> {
         if self.size > 0 {
             if is_primitive(TypeId::of::<U>()) {
                 unsafe {
-                    vec.set_len(self.size);
-                }
-                unsafe {
                     ptr::copy(
                         values.as_ptr() as *const V,
                         vec.as_mut_ptr() as *mut V,
                         self.size,
-                    )
-                };
+                    );
+                    vec.set_len(self.size);
+                }
             } else {
                 for value in values {
                     vec.push(value.as_rust()?);
@@ -153,15 +152,9 @@ impl<U: CReprOf<V> + CDrop, V: 'static> CReprOf<Vec<V>> for CArray<U> {
 
         if input_size > 0 {
             if is_primitive(TypeId::of::<V>()) {
-                let mut data = Vec::<V>::with_capacity(input_size);
-                unsafe {
-                    data.set_len(input_size);
-                    ptr::copy(
-                        input.as_ptr() as *const U,
-                        data.as_mut_ptr() as *mut U,
-                        input_size,
-                    )
-                };
+                let mut data: MaybeUninit<Vec<V>> = unsafe { MaybeUninit::uninit().assume_init() };
+                data.write(input);
+                let data = unsafe { mem::transmute::<_, Vec<V>>(data) };
                 output.data_ptr = Box::into_raw(data.into_boxed_slice()) as *const U;
             } else {
                 output.data_ptr = Box::into_raw(
