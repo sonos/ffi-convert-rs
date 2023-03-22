@@ -3,11 +3,10 @@
 
 use std::any::TypeId;
 use std::ffi::{CStr, CString};
-use std::mem::{self, MaybeUninit};
 use std::ops::Range;
 use std::ptr;
 
-use crate::{conversions::*, is_primitive};
+use crate::conversions::*;
 
 /// A utility type to represent arrays of string
 /// # Example
@@ -120,9 +119,10 @@ impl<U: AsRust<V> + 'static, V> AsRust<Vec<V>> for CArray<U> {
     fn as_rust(&self) -> Result<Vec<V>, AsRustError> {
         let mut vec = Vec::with_capacity(self.size);
 
-        let values = unsafe { std::slice::from_raw_parts_mut(self.data_ptr as *mut U, self.size) };
-
         if self.size > 0 {
+            let values =
+                unsafe { std::slice::from_raw_parts_mut(self.data_ptr as *mut U, self.size) };
+
             if is_primitive(TypeId::of::<U>()) {
                 unsafe {
                     ptr::copy(
@@ -152,10 +152,7 @@ impl<U: CReprOf<V> + CDrop, V: 'static> CReprOf<Vec<V>> for CArray<U> {
 
         if input_size > 0 {
             if is_primitive(TypeId::of::<V>()) {
-                let mut data: MaybeUninit<Vec<V>> = unsafe { MaybeUninit::uninit().assume_init() };
-                data.write(input);
-                let data = unsafe { mem::transmute::<_, Vec<V>>(data) };
-                output.data_ptr = Box::into_raw(data.into_boxed_slice()) as *const U;
+                output.data_ptr = Box::into_raw(input.into_boxed_slice()) as *const U;
             } else {
                 output.data_ptr = Box::into_raw(
                     input
@@ -211,6 +208,17 @@ impl<T> RawPointerConverter<CArray<T>> for CArray<T> {
     ) -> Result<Self, UnexpectedNullPointerError> {
         take_back_from_raw_pointer_mut(input)
     }
+}
+
+fn is_primitive(id: TypeId) -> bool {
+    id == TypeId::of::<u8>()
+        || id == TypeId::of::<i8>()
+        || id == TypeId::of::<u16>()
+        || id == TypeId::of::<i16>()
+        || id == TypeId::of::<u32>()
+        || id == TypeId::of::<i32>()
+        || id == TypeId::of::<f32>()
+        || id == TypeId::of::<f64>()
 }
 
 /// A utility type to represent range.
