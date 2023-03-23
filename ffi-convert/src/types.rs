@@ -1,9 +1,10 @@
 //! This module contains definitions of utility types that implement the [`CReprOf`], [`AsRust`], and [`CDrop`] traits.
 //!
 
+use std::any::TypeId;
 use std::ffi::{CStr, CString};
 use std::ops::Range;
-use std::ptr::null;
+use std::ptr;
 
 use crate::conversions::*;
 
@@ -114,38 +115,58 @@ pub struct CArray<T> {
     size: usize,
 }
 
-impl<U: AsRust<V>, V> AsRust<Vec<V>> for CArray<U> {
+impl<U: AsRust<V> + 'static, V> AsRust<Vec<V>> for CArray<U> {
     fn as_rust(&self) -> Result<Vec<V>, AsRustError> {
         let mut vec = Vec::with_capacity(self.size);
+
         if self.size > 0 {
             let values =
                 unsafe { std::slice::from_raw_parts_mut(self.data_ptr as *mut U, self.size) };
-            for value in values {
-                vec.push(value.as_rust()?);
+
+            if is_primitive(TypeId::of::<U>()) {
+                unsafe {
+                    ptr::copy(
+                        values.as_ptr() as *const V,
+                        vec.as_mut_ptr() as *mut V,
+                        self.size,
+                    );
+                    vec.set_len(self.size);
+                }
+            } else {
+                for value in values {
+                    vec.push(value.as_rust()?);
+                }
             }
         }
         Ok(vec)
     }
 }
 
-impl<U: CReprOf<V> + CDrop, V> CReprOf<Vec<V>> for CArray<U> {
+impl<U: CReprOf<V> + CDrop, V: 'static> CReprOf<Vec<V>> for CArray<U> {
     fn c_repr_of(input: Vec<V>) -> Result<Self, CReprOfError> {
         let input_size = input.len();
-        Ok(Self {
-            data_ptr: if input_size > 0 {
-                Box::into_raw(
+        let mut output: CArray<U> = CArray {
+            data_ptr: ptr::null(),
+            size: input_size,
+        };
+
+        if input_size > 0 {
+            if is_primitive(TypeId::of::<V>()) {
+                output.data_ptr = Box::into_raw(input.into_boxed_slice()) as *const U;
+            } else {
+                output.data_ptr = Box::into_raw(
                     input
                         .into_iter()
                         .map(U::c_repr_of)
                         .collect::<Result<Vec<_>, CReprOfError>>()
                         .expect("Could not convert to C representation")
                         .into_boxed_slice(),
-                ) as *const U
-            } else {
-                null() as *const U
-            },
-            size: input_size,
-        })
+                ) as *const U;
+            }
+        } else {
+            output.data_ptr = ptr::null() as *const U;
+        }
+        Ok(output)
     }
 }
 
@@ -187,6 +208,17 @@ impl<T> RawPointerConverter<CArray<T>> for CArray<T> {
     ) -> Result<Self, UnexpectedNullPointerError> {
         take_back_from_raw_pointer_mut(input)
     }
+}
+
+fn is_primitive(id: TypeId) -> bool {
+    id == TypeId::of::<u8>()
+        || id == TypeId::of::<i8>()
+        || id == TypeId::of::<u16>()
+        || id == TypeId::of::<i16>()
+        || id == TypeId::of::<u32>()
+        || id == TypeId::of::<i32>()
+        || id == TypeId::of::<f32>()
+        || id == TypeId::of::<f64>()
 }
 
 /// A utility type to represent range.
