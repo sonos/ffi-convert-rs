@@ -10,6 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+
+## [0.6.1] - 2023-03-23
+### Added
+
+### Changed
+ - Performance improvements for `CReprOf` and `AsRust` of `CArray` when using primitive types
+
+### Fixed
  - Add missing impl of `RawPointerConverter` for `CStringArray`
 
 ## [0.6.0] - 2023-01-18
@@ -80,7 +88,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
  - first release
 
-[Unreleased]: https://github.com/sonos/ffi-convert-rs/compare/0.5.0...HEAD
+[Unreleased]: https://github.com/sonos/ffi-convert-rs/compare/0.6.1...HEAD
+[0.6.1]: https://github.com/sonos/ffi-convert-rs/compare/0.6.0...0.6.1
+[0.6.0]: https://github.com/sonos/ffi-convert-rs/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/sonos/ffi-convert-rs/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/sonos/ffi-convert-rs/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/sonos/ffi-convert-rs/compare/0.2.2...0.3.0
