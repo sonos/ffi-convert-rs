@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 ### Fixed
+ - Add missing impl of `RawPointerConverter` for `CStringArray`
 
 ## [0.6.0] - 2023-01-18
 ### Added
