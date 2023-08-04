@@ -114,8 +114,10 @@ impl Drop for CStringArray {
 #[repr(C)]
 #[derive(Debug)]
 pub struct CArray<T> {
-    data_ptr: *const T,
-    size: usize,
+    /// Pointer to the first element of the array
+    pub data_ptr: *const T,
+    /// Number of elements in the array
+    pub size: usize,
 }
 
 impl<U: AsRust<V> + 'static, V> AsRust<Vec<V>> for CArray<U> {
