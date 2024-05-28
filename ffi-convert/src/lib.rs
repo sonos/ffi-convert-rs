@@ -66,7 +66,7 @@
 //! # struct Pizza {
 //! #     name: String,
 //! #     toppings: Vec<Topping>,
-//! #     base: Sauce,
+//! #     base: Option<Sauce>,
 //! #     weight: f32
 //! # };
 //! use libc::{c_char, c_float};
@@ -82,6 +82,7 @@
 //! pub struct CPizza {
 //!     pub name: *const c_char,
 //!     pub toppings: *const CArray<CTopping>,
+//!     #[nullable]
 //!     pub base: *const CSauce,
 //!     pub weight: c_float,
 //! }
