@@ -130,11 +130,7 @@ impl<U: AsRust<V> + 'static, V> AsRust<Vec<V>> for CArray<U> {
 
             if is_primitive(TypeId::of::<U>()) {
                 unsafe {
-                    ptr::copy(
-                        values.as_ptr() as *const V,
-                        vec.as_mut_ptr() as *mut V,
-                        self.size,
-                    );
+                    ptr::copy(values.as_ptr() as *const V, vec.as_mut_ptr(), self.size);
                     vec.set_len(self.size);
                 }
             } else {
@@ -169,7 +165,7 @@ impl<U: CReprOf<V> + CDrop, V: 'static> CReprOf<Vec<V>> for CArray<U> {
                 ) as *const U;
             }
         } else {
-            output.data_ptr = ptr::null() as *const U;
+            output.data_ptr = ptr::null();
         }
         Ok(output)
     }
