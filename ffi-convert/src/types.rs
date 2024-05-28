@@ -177,12 +177,14 @@ impl<U: CReprOf<V> + CDrop, V: 'static> CReprOf<Vec<V>> for CArray<U> {
 
 impl<T> CDrop for CArray<T> {
     fn do_drop(&mut self) -> Result<(), CDropError> {
-        let _ = unsafe {
-            Box::from_raw(std::slice::from_raw_parts_mut(
-                self.data_ptr as *mut T,
-                self.size,
-            ))
-        };
+        if !self.data_ptr.is_null() {
+            let _ = unsafe {
+                Box::from_raw(std::slice::from_raw_parts_mut(
+                    self.data_ptr as *mut T,
+                    self.size,
+                ))
+            };
+        }
         Ok(())
     }
 }
