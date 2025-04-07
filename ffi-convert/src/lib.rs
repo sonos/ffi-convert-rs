@@ -175,6 +175,7 @@
 //! > When trying to convert a `repr(C)` struct that originated from C, the philosophy is to immediately convert
 //! > the struct to an **owned** idiomatic representation of the struct via the AsRust trait.
 
+//!
 //! The [`AsRust`] trait allows to create an idiomatic Rust struct from a C-compatible struct :
 
 //! ```
