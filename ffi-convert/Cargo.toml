@@ -11,5 +11,5 @@ keywords = ["ffi"]
 
 [dependencies]
 ffi-convert-derive = { path = "../ffi-convert-derive" }
-thiserror = "1.0.20"
+thiserror = "2.0.12"
 libc = "0.2"

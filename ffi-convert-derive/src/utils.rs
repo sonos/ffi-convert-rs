@@ -36,6 +36,7 @@ pub struct Field<'a> {
     pub name: &'a syn::Ident,
     pub target_name: syn::Ident,
     pub field_type: TypeArrayOrTypePath,
+    #[allow(unused)]
     pub type_params: Option<syn::AngleBracketedGenericArguments>,
     pub is_nullable: bool,
     pub is_string: bool,

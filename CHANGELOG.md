@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.2] - 2025-04-07
 ### Added
+- bumped `thiserror` to 2.x 
 
 ### Changed
 - Make `CArray` fields public
