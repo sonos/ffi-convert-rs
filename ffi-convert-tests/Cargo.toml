@@ -1,6 +1,6 @@
 [package]
 name = "ffi-convert-tests"
-version = "0.7.0-pre"
+version = "0.6.2"
 authors = ["Sonos"]
 edition = "2018"
 
