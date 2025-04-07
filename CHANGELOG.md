@@ -8,9 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+
+### Fixed
+
+
+## [0.6.2] - 2025-04-07
+### Added
+
+### Changed
 - Make `CArray` fields public
 
 ### Fixed
+- do not attempt to create a slice from a null pointer when dropping an empty CArray
+- add missing `#[nullable]` annotation in doc, fix #53
 
 ## [0.6.1] - 2023-03-23
 ### Added
@@ -89,7 +99,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
  - first release
 
-[Unreleased]: https://github.com/sonos/ffi-convert-rs/compare/0.6.1...HEAD
+[Unreleased]: https://github.com/sonos/ffi-convert-rs/compare/0.6.2...HEAD
+[0.6.2]: https://github.com/sonos/ffi-convert-rs/compare/0.6.1...0.6.2
 [0.6.1]: https://github.com/sonos/ffi-convert-rs/compare/0.6.0...0.6.1
 [0.6.0]: https://github.com/sonos/ffi-convert-rs/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/sonos/ffi-convert-rs/compare/0.4.0...0.5.0
