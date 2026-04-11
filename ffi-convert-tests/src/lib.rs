@@ -348,6 +348,7 @@ mod tests {
         let cc_output = compiler
             .to_command()
             .arg(manifest_dir.join("test_round_trip.c"))
+            .arg("-fsanitize=address")
             .arg(format!("-L{}", target_dir.display()))
             .arg("-lffi_convert_tests")
             .arg("-o")
@@ -370,6 +371,23 @@ mod tests {
             "C test failed: {}{}",
             String::from_utf8_lossy(&run.stdout),
             String::from_utf8_lossy(&run.stderr)
+        );
+
+        // Run the ASan canary: a deliberate use-after-free that ASan must catch
+        let canary = std::process::Command::new(&test_binary)
+            .arg("--asan-canary")
+            .env("LD_LIBRARY_PATH", &target_dir)
+            .output()
+            .expect("Failed to run ASan canary");
+        assert!(
+            !canary.status.success(),
+            "ASan canary should have crashed but didn't — is ASan working?"
+        );
+        let canary_stderr = String::from_utf8_lossy(&canary.stderr);
+        assert!(
+            canary_stderr.contains("AddressSanitizer"),
+            "ASan canary crashed but not from ASan: {}",
+            canary_stderr
         );
     }
 }

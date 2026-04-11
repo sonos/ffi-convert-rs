@@ -167,7 +167,50 @@ void test_minimal_pancake(void) {
     printf("  minimal pancake: OK\n");
 }
 
-int main(void) {
+void test_asan_canary(void) {
+    /* Deliberately trigger a use-after-free to verify ASan is working. */
+    CDummy dummy = {.count = 0, .describe = ""};
+    CArray_CTopping toppings = {.data_ptr = NULL, .size = 0};
+    CLayer base_layers[3] = {
+        {.number = 0, .subtitle = NULL},
+        {.number = 0, .subtitle = NULL},
+        {.number = 0, .subtitle = NULL},
+    };
+    CRange_i32 range = {.start = 0, .end = 0};
+    CPancake pancake = {
+        .name = "canary",
+        .description = NULL,
+        .start = 0.0f,
+        .end = NULL,
+        .float_array = {0},
+        .dummy = dummy,
+        .sauce = NULL,
+        .toppings = &toppings,
+        .layers = NULL,
+        .base_layers = {base_layers[0], base_layers[1], base_layers[2]},
+        .is_delicious = false,
+        .range = range,
+        .flattened_range_start = 0,
+        .flattened_range_end = 0,
+        .field_with_specific_c_name = "",
+        .pancake_data = NULL,
+        .extra_ice_cream_flavor = Vanilla,
+    };
+
+    const CPancake *result = pancake_round_trip(&pancake);
+    pancake_free(result);
+    /* use-after-free: ASan should catch this */
+    printf("  asan canary (use-after-free): name=%s\n", result->name);
+}
+
+int main(int argc, char **argv) {
+    if (argc > 1 && strcmp(argv[1], "--asan-canary") == 0) {
+        printf("Triggering ASan canary (should crash):\n");
+        test_asan_canary();
+        printf("ERROR: ASan did not catch use-after-free!\n");
+        return 1;
+    }
+
     printf("C round-trip tests:\n");
     test_full_pancake();
     test_minimal_pancake();
