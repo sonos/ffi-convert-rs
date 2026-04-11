@@ -16,10 +16,7 @@ pub fn parse_no_drop_impl_flag(attrs: &[syn::Attribute]) -> bool {
 }
 
 pub fn parse_struct_fields(data: &syn::DataStruct) -> Vec<Field<'_>> {
-    data.fields
-        .iter()
-        .map(parse_field)
-        .collect::<Vec<Field>>()
+    data.fields.iter().map(parse_field).collect::<Vec<Field>>()
 }
 
 pub fn parse_enum_variants(data: &syn::DataEnum) -> Vec<&syn::Ident> {

@@ -2,7 +2,9 @@ use proc_macro::TokenStream;
 
 use quote::quote;
 
-use crate::utils::{parse_enum_variants, parse_struct_fields, parse_target_type, Field, TypeArrayOrTypePath};
+use crate::utils::{
+    parse_enum_variants, parse_struct_fields, parse_target_type, Field, TypeArrayOrTypePath,
+};
 
 pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     let name = &input.ident;
@@ -89,9 +91,9 @@ fn impl_creprof_enum(
 ) -> TokenStream {
     let variants = parse_enum_variants(data);
 
-    let match_arms = variants.iter().map(|variant| {
-        quote!(#target_type::#variant => Ok(#enum_name::#variant))
-    });
+    let match_arms = variants
+        .iter()
+        .map(|variant| quote!(#target_type::#variant => Ok(#enum_name::#variant)));
 
     quote!(
         impl CReprOf<#target_type> for #enum_name {
