@@ -425,9 +425,19 @@ mod tests {
         generate_c_header(tmp_dir.path());
 
         let test_binary = tmp_dir.path().join("test_round_trip");
-        compile_c_test(tmp_dir.path(), &target_dir, "-fsanitize=address", &test_binary);
+        compile_c_test(
+            tmp_dir.path(),
+            &target_dir,
+            "-fsanitize=address",
+            &test_binary,
+        );
         run_c_test(&test_binary, &target_dir);
-        run_sanitizer_canary(&test_binary, &target_dir, "--asan-canary", "AddressSanitizer");
+        run_sanitizer_canary(
+            &test_binary,
+            &target_dir,
+            "--asan-canary",
+            "AddressSanitizer",
+        );
     }
 
     #[test]
