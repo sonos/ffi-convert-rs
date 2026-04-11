@@ -154,16 +154,22 @@ pub enum CFlavor {
     Strawberry,
 }
 
+/// # Safety
+///
+/// `input` must be a valid pointer to a `CPancake`.
 #[no_mangle]
-pub extern "C" fn pancake_round_trip(input: *const CPancake) -> *const CPancake {
+pub unsafe extern "C" fn pancake_round_trip(input: *const CPancake) -> *const CPancake {
     let c_pancake = unsafe { &*input };
     let rust_pancake: Pancake = c_pancake.as_rust().expect("Failed to convert to Rust");
     let c_pancake_roundtrip = CPancake::c_repr_of(rust_pancake).expect("Failed to convert to C");
     Box::into_raw(Box::new(c_pancake_roundtrip))
 }
 
+/// # Safety
+///
+/// `pancake` must be a pointer returned by `pancake_round_trip`. It must not be used after this call.
 #[no_mangle]
-pub extern "C" fn pancake_free(pancake: *const CPancake) {
+pub unsafe extern "C" fn pancake_free(pancake: *const CPancake) {
     unsafe { drop(Box::from_raw(pancake as *mut CPancake)) }
 }
 
