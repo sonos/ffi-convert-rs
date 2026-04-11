@@ -49,6 +49,7 @@ pub struct Pancake {
     pub flattened_range: Range<i64>,
     pub field_with_specific_rust_name: String,
     pub pancake_data: Option<Vec<u8>>,
+    pub extra_ice_cream_flavor: Flavor,
 }
 
 #[repr(C)]
@@ -81,6 +82,7 @@ pub struct CPancake {
     pub field_with_specific_c_name: *const libc::c_char,
     #[nullable]
     pancake_data: *const CArray<u8>,
+    extra_ice_cream_flavor: CFlavor,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -136,9 +138,33 @@ pub struct CDummy {
     describe: *const libc::c_char,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Flavor {
+    Vanilla,
+    Chocolate,
+    Strawberry,
+}
+
+#[repr(C)]
+#[derive(CReprOf, AsRust, CDrop)]
+#[target_type(Flavor)]
+pub enum CFlavor {
+    Vanilla,
+    Chocolate,
+    Strawberry,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    generate_round_trip_rust_c_rust!(round_trip_flavor_vanilla, Flavor, CFlavor, {
+        Flavor::Vanilla
+    });
+
+    generate_round_trip_rust_c_rust!(round_trip_flavor_chocolate, Flavor, CFlavor, {
+        Flavor::Chocolate
+    });
 
     generate_round_trip_rust_c_rust!(round_trip_sauce, Sauce, CSauce, { Sauce { volume: 4.2 } });
 
@@ -197,6 +223,7 @@ mod tests {
             flattened_range: Range { start: 42, end: 64 },
             field_with_specific_rust_name: "renamed field".to_string(),
             pancake_data: Some(vec![1, 2, 3]),
+            extra_ice_cream_flavor: Flavor::Chocolate,
         }
     });
 
@@ -237,6 +264,7 @@ mod tests {
             flattened_range: Range { start: 42, end: 64 },
             field_with_specific_rust_name: "renamed field".to_string(),
             pancake_data: None,
+            extra_ice_cream_flavor: Flavor::Strawberry,
         }
     });
 }

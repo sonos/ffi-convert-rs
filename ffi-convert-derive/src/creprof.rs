@@ -2,13 +2,25 @@ use proc_macro::TokenStream;
 
 use quote::quote;
 
-use crate::utils::{parse_struct_fields, parse_target_type, Field, TypeArrayOrTypePath};
+use crate::utils::{parse_enum_variants, parse_struct_fields, parse_target_type, Field, TypeArrayOrTypePath};
 
 pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
-    let struct_name = &input.ident;
+    let name = &input.ident;
     let target_type = parse_target_type(&input.attrs);
 
-    let fields = parse_struct_fields(&input.data);
+    match &input.data {
+        syn::Data::Struct(data_struct) => impl_creprof_struct(name, &target_type, data_struct),
+        syn::Data::Enum(data_enum) => impl_creprof_enum(name, &target_type, data_enum),
+        _ => panic!("CReprOf can only be derived for structs and unit enums"),
+    }
+}
+
+fn impl_creprof_struct(
+    struct_name: &syn::Ident,
+    target_type: &syn::Path,
+    data: &syn::DataStruct,
+) -> TokenStream {
+    let fields = parse_struct_fields(data);
     let c_repr_of_fields = fields
         .iter()
         .map(|field| {
@@ -57,15 +69,38 @@ pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
         })
         .collect::<Vec<_>>();
 
-    let c_repr_of_impl = quote!(
-        impl CReprOf<# target_type> for # struct_name {
-            fn c_repr_of(input: # target_type) -> Result<Self, ffi_convert::CReprOfError> {
+    quote!(
+        impl CReprOf<#target_type> for #struct_name {
+            fn c_repr_of(input: #target_type) -> Result<Self, ffi_convert::CReprOfError> {
                 use ffi_convert::RawPointerConverter;
                 Ok(Self {
-                    # ( # c_repr_of_fields, )*
+                    #(#c_repr_of_fields,)*
                 })
             }
         }
-    );
-    c_repr_of_impl.into()
+    )
+    .into()
+}
+
+fn impl_creprof_enum(
+    enum_name: &syn::Ident,
+    target_type: &syn::Path,
+    data: &syn::DataEnum,
+) -> TokenStream {
+    let variants = parse_enum_variants(data);
+
+    let match_arms = variants.iter().map(|variant| {
+        quote!(#target_type::#variant => Ok(#enum_name::#variant))
+    });
+
+    quote!(
+        impl CReprOf<#target_type> for #enum_name {
+            fn c_repr_of(input: #target_type) -> Result<Self, ffi_convert::CReprOfError> {
+                match input {
+                    #(#match_arms,)*
+                }
+            }
+        }
+    )
+    .into()
 }

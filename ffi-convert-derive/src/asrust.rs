@@ -3,13 +3,26 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::parse::{Parse, ParseBuffer};
 
-use crate::utils::{parse_struct_fields, parse_target_type, Field, TypeArrayOrTypePath};
+use crate::utils::{parse_enum_variants, parse_struct_fields, parse_target_type, Field, TypeArrayOrTypePath};
 
 pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
-    let struct_name = &input.ident;
+    let name = &input.ident;
     let target_type = parse_target_type(&input.attrs);
 
-    let fields = parse_struct_fields(&input.data)
+    match &input.data {
+        syn::Data::Struct(data_struct) => impl_asrust_struct(name, &target_type, data_struct, input),
+        syn::Data::Enum(data_enum) => impl_asrust_enum(name, &target_type, data_enum),
+        _ => panic!("AsRust can only be derived for structs and unit enums"),
+    }
+}
+
+fn impl_asrust_struct(
+    struct_name: &syn::Ident,
+    target_type: &syn::Path,
+    data: &syn::DataStruct,
+    input: &syn::DeriveInput,
+) -> TokenStream {
+    let fields = parse_struct_fields(data)
         .iter()
         .filter_map(|field| {
             let Field {
@@ -99,6 +112,29 @@ pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
                     #(#fields, )*
                     #(#extra_fields, )*
                 })
+            }
+        }
+    )
+    .into()
+}
+
+fn impl_asrust_enum(
+    enum_name: &syn::Ident,
+    target_type: &syn::Path,
+    data: &syn::DataEnum,
+) -> TokenStream {
+    let variants = parse_enum_variants(data);
+
+    let match_arms = variants.iter().map(|variant| {
+        quote!(#enum_name::#variant => Ok(#target_type::#variant))
+    });
+
+    quote!(
+        impl AsRust<#target_type> for #enum_name {
+            fn as_rust(&self) -> Result<#target_type, ffi_convert::AsRustError> {
+                match self {
+                    #(#match_arms,)*
+                }
             }
         }
     )
