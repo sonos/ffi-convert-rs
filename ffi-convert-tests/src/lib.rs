@@ -154,6 +154,19 @@ pub enum CFlavor {
     Strawberry,
 }
 
+#[no_mangle]
+pub extern "C" fn pancake_round_trip(input: *const CPancake) -> *const CPancake {
+    let c_pancake = unsafe { &*input };
+    let rust_pancake: Pancake = c_pancake.as_rust().expect("Failed to convert to Rust");
+    let c_pancake_roundtrip = CPancake::c_repr_of(rust_pancake).expect("Failed to convert to C");
+    Box::into_raw(Box::new(c_pancake_roundtrip))
+}
+
+#[no_mangle]
+pub extern "C" fn pancake_free(pancake: *const CPancake) {
+    unsafe { drop(Box::from_raw(pancake as *mut CPancake)) }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -267,4 +280,90 @@ mod tests {
             extra_ice_cream_flavor: Flavor::Strawberry,
         }
     });
+
+    #[test]
+    fn c_round_trip() {
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let workspace_dir = manifest_dir.parent().unwrap();
+        let target_dir = workspace_dir.join("target").join("debug");
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+
+        // Are we calling cargo from inside the test binary to make sure the cdylib is built ?
+        // yes, watch me.
+        let cargo_build = std::process::Command::new("cargo")
+            .arg("build")
+            .arg("-p")
+            .arg("ffi-convert-tests")
+            .current_dir(workspace_dir)
+            .output()
+            .expect("Failed to run cargo build");
+        assert!(
+            cargo_build.status.success(),
+            "cargo build failed: {}",
+            String::from_utf8_lossy(&cargo_build.stderr)
+        );
+
+        // Generate C header with cbindgen
+        let header_path = tmp_dir.path().join("ffi_convert_tests.h");
+        let mut config = cbindgen::Config::default();
+        config.language = cbindgen::Language::C;
+        config.parse = cbindgen::ParseConfig {
+            parse_deps: true,
+            include: Some(vec!["ffi-convert".to_string()]),
+            ..Default::default()
+        };
+        let bindings = cbindgen::Builder::new()
+            .with_crate(manifest_dir.to_str().unwrap())
+            .with_config(config)
+            .generate()
+            .expect("Failed to generate C bindings");
+        bindings.write_to_file(&header_path);
+
+        // Compile the C test and link against the cdylib.
+        // The cc crate expects cargo build-script env vars, so we provide them.
+        let rustc_output = std::process::Command::new("rustc")
+            .arg("-vV")
+            .output()
+            .expect("Failed to run rustc");
+        let rustc_info = String::from_utf8_lossy(&rustc_output.stdout);
+        let host_target = rustc_info
+            .lines()
+            .find_map(|l| l.strip_prefix("host: "))
+            .expect("Could not determine host target from rustc");
+        std::env::set_var("TARGET", host_target);
+        std::env::set_var("HOST", host_target);
+        std::env::set_var("OPT_LEVEL", "0");
+
+        let test_binary = tmp_dir.path().join("test_round_trip");
+        let compiler = cc::Build::new()
+            .include(tmp_dir.path())
+            .opt_level(0)
+            .get_compiler();
+        let cc_output = compiler
+            .to_command()
+            .arg(manifest_dir.join("test_round_trip.c"))
+            .arg(format!("-L{}", target_dir.display()))
+            .arg("-lffi_convert_tests")
+            .arg("-o")
+            .arg(&test_binary)
+            .output()
+            .expect("Failed to run C compiler");
+        assert!(
+            cc_output.status.success(),
+            "C compilation failed: {}",
+            String::from_utf8_lossy(&cc_output.stderr)
+        );
+
+        // Run the C test
+        let run = std::process::Command::new(&test_binary)
+            .env("LD_LIBRARY_PATH", &target_dir)
+            .output()
+            .expect("Failed to run C test");
+        assert!(
+            run.status.success(),
+            "C test failed: {}{}",
+            String::from_utf8_lossy(&run.stdout),
+            String::from_utf8_lossy(&run.stderr)
+        );
+    }
 }

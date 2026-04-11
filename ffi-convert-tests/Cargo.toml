@@ -4,7 +4,15 @@ version = "0.7.0-pre"
 authors = ["Sonos"]
 edition = "2018"
 
+[lib]
+crate-type = ["rlib", "cdylib"]
+
 [dependencies]
 anyhow = "1.0.32"
 ffi-convert = { path ="../ffi-convert" }
 libc = "0.2.66"
+
+[dev-dependencies]
+cbindgen = "0.29"
+cc = "1"
+tempfile = "3"
