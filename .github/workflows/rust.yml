@@ -21,3 +21,9 @@ jobs:
       run: cargo fmt -- --check
     - name: Clippy
       run: cargo clippy -- -D clippy::all
+    - name: Install nightly toolchain
+      run: rustup toolchain install nightly --component rust-src
+    - name: Run tests under MSan
+      run: cargo +nightly test -Zbuild-std --target=x86_64-unknown-linux-gnu --features msan --verbose
+      env:
+        RUSTFLAGS: -Zsanitizer=memory

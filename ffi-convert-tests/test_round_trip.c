@@ -203,11 +203,29 @@ void test_asan_canary(void) {
     printf("  asan canary (use-after-free): name=%s\n", result->name);
 }
 
+void test_msan_canary(void) {
+    /* Deliberately read uninitialized memory to verify MSan is working. */
+    int uninit;
+    /* volatile prevents the compiler from optimizing away the read */
+    if (*(volatile int *)&uninit > 0) {
+        printf("  msan canary: uninit was positive\n");
+    } else {
+        printf("  msan canary: uninit was non-positive\n");
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc > 1 && strcmp(argv[1], "--asan-canary") == 0) {
         printf("Triggering ASan canary (should crash):\n");
         test_asan_canary();
         printf("ERROR: ASan did not catch use-after-free!\n");
+        return 1;
+    }
+
+    if (argc > 1 && strcmp(argv[1], "--msan-canary") == 0) {
+        printf("Triggering MSan canary (should crash):\n");
+        test_msan_canary();
+        printf("ERROR: MSan did not catch uninitialized read!\n");
         return 1;
     }
 

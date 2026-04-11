@@ -287,7 +287,118 @@ mod tests {
         }
     });
 
+    /// Helper: detect the host target triple from rustc.
+    fn host_target() -> String {
+        let output = std::process::Command::new("rustc")
+            .arg("-vV")
+            .output()
+            .expect("Failed to run rustc");
+        let info = String::from_utf8_lossy(&output.stdout);
+        info.lines()
+            .find_map(|l| l.strip_prefix("host: "))
+            .expect("Could not determine host target from rustc")
+            .to_string()
+    }
+
+    /// Helper: generate the C header with cbindgen into the given directory.
+    fn generate_c_header(header_dir: &std::path::Path) {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let header_path = header_dir.join("ffi_convert_tests.h");
+        let mut config = cbindgen::Config::default();
+        config.language = cbindgen::Language::C;
+        config.parse = cbindgen::ParseConfig {
+            parse_deps: true,
+            include: Some(vec!["ffi-convert".to_string()]),
+            ..Default::default()
+        };
+        let bindings = cbindgen::Builder::new()
+            .with_crate(manifest_dir)
+            .with_config(config)
+            .generate()
+            .expect("Failed to generate C bindings");
+        bindings.write_to_file(&header_path);
+    }
+
+    /// Helper: set the env vars that the cc crate expects outside of build.rs.
+    fn setup_cc_env(host_target: &str) {
+        std::env::set_var("TARGET", host_target);
+        std::env::set_var("HOST", host_target);
+        std::env::set_var("OPT_LEVEL", "0");
+    }
+
+    /// Helper: compile the C test with the given sanitizer flag and link against the cdylib.
+    fn compile_c_test(
+        header_dir: &std::path::Path,
+        lib_dir: &std::path::Path,
+        sanitizer_flag: &str,
+        output: &std::path::Path,
+    ) {
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let compiler = cc::Build::new()
+            .include(header_dir)
+            .opt_level(0)
+            .get_compiler();
+        let cc_output = compiler
+            .to_command()
+            .arg(manifest_dir.join("test_round_trip.c"))
+            .arg(sanitizer_flag)
+            .arg(format!("-L{}", lib_dir.display()))
+            .arg("-lffi_convert_tests")
+            .arg("-o")
+            .arg(output)
+            .output()
+            .expect("Failed to run C compiler");
+        assert!(
+            cc_output.status.success(),
+            "C compilation failed: {}",
+            String::from_utf8_lossy(&cc_output.stderr)
+        );
+    }
+
+    /// Helper: run the C test binary and assert success.
+    fn run_c_test(binary: &std::path::Path, lib_dir: &std::path::Path) {
+        let run = std::process::Command::new(binary)
+            .env("LD_LIBRARY_PATH", lib_dir)
+            .output()
+            .expect("Failed to run C test");
+        assert!(
+            run.status.success(),
+            "C test failed: {}{}",
+            String::from_utf8_lossy(&run.stdout),
+            String::from_utf8_lossy(&run.stderr)
+        );
+    }
+
+    /// Helper: run the C test binary with a canary flag and assert the sanitizer catches it.
+    fn run_sanitizer_canary(
+        binary: &std::path::Path,
+        lib_dir: &std::path::Path,
+        canary_flag: &str,
+        expected_stderr: &str,
+    ) {
+        let canary = std::process::Command::new(binary)
+            .arg(canary_flag)
+            .env("LD_LIBRARY_PATH", lib_dir)
+            .output()
+            .expect("Failed to run sanitizer canary");
+        assert!(
+            !canary.status.success(),
+            "Sanitizer canary ({}) should have crashed but didn't",
+            canary_flag
+        );
+        let stderr = String::from_utf8_lossy(&canary.stderr);
+        assert!(
+            stderr.contains(expected_stderr),
+            "Canary ({}) crashed but not from expected sanitizer: {}",
+            canary_flag,
+            stderr
+        );
+    }
+
     #[test]
+    #[cfg(not(feature = "msan"))]
+    // we force clang via an env var in the test runner process in the msan roundtip test, so let's
+    // disable the default round trip test to avoid weird errors
     fn c_round_trip() {
         let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
         let workspace_dir = manifest_dir.parent().unwrap();
@@ -309,85 +420,55 @@ mod tests {
             String::from_utf8_lossy(&cargo_build.stderr)
         );
 
-        // Generate C header with cbindgen
-        let header_path = tmp_dir.path().join("ffi_convert_tests.h");
-        let mut config = cbindgen::Config::default();
-        config.language = cbindgen::Language::C;
-        config.parse = cbindgen::ParseConfig {
-            parse_deps: true,
-            include: Some(vec!["ffi-convert".to_string()]),
-            ..Default::default()
-        };
-        let bindings = cbindgen::Builder::new()
-            .with_crate(manifest_dir.to_str().unwrap())
-            .with_config(config)
-            .generate()
-            .expect("Failed to generate C bindings");
-        bindings.write_to_file(&header_path);
-
-        // Compile the C test and link against the cdylib.
-        // The cc crate expects cargo build-script env vars, so we provide them.
-        let rustc_output = std::process::Command::new("rustc")
-            .arg("-vV")
-            .output()
-            .expect("Failed to run rustc");
-        let rustc_info = String::from_utf8_lossy(&rustc_output.stdout);
-        let host_target = rustc_info
-            .lines()
-            .find_map(|l| l.strip_prefix("host: "))
-            .expect("Could not determine host target from rustc");
-        std::env::set_var("TARGET", host_target);
-        std::env::set_var("HOST", host_target);
-        std::env::set_var("OPT_LEVEL", "0");
+        let host = host_target();
+        setup_cc_env(&host);
+        generate_c_header(tmp_dir.path());
 
         let test_binary = tmp_dir.path().join("test_round_trip");
-        let compiler = cc::Build::new()
-            .include(tmp_dir.path())
-            .opt_level(0)
-            .get_compiler();
-        let cc_output = compiler
-            .to_command()
-            .arg(manifest_dir.join("test_round_trip.c"))
-            .arg("-fsanitize=address")
-            .arg(format!("-L{}", target_dir.display()))
-            .arg("-lffi_convert_tests")
-            .arg("-o")
-            .arg(&test_binary)
+        compile_c_test(tmp_dir.path(), &target_dir, "-fsanitize=address", &test_binary);
+        run_c_test(&test_binary, &target_dir);
+        run_sanitizer_canary(&test_binary, &target_dir, "--asan-canary", "AddressSanitizer");
+    }
+
+    #[test]
+    #[cfg(feature = "msan")]
+    fn c_round_trip_msan() {
+        let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        let workspace_dir = manifest_dir.parent().unwrap();
+        let tmp_dir = tempfile::tempdir().expect("Failed to create temp dir");
+
+        let host = host_target();
+
+        // Build the cdylib with MSan instrumentation (requires nightly + rust-src)
+        let target_dir = tmp_dir.path().join("target");
+        let cargo_build = std::process::Command::new("cargo")
+            .arg("+nightly")
+            .arg("build")
+            .arg("-p")
+            .arg("ffi-convert-tests")
+            .arg("-Zbuild-std")
+            .arg(format!("--target={}", host))
+            .current_dir(workspace_dir)
+            .env("CARGO_TARGET_DIR", &target_dir)
+            .env("RUSTFLAGS", "-Zsanitizer=memory")
             .output()
-            .expect("Failed to run C compiler");
+            .expect("Failed to run cargo build with MSan");
         assert!(
-            cc_output.status.success(),
-            "C compilation failed: {}",
-            String::from_utf8_lossy(&cc_output.stderr)
+            cargo_build.status.success(),
+            "cargo build with MSan failed: {}",
+            String::from_utf8_lossy(&cargo_build.stderr)
         );
 
-        // Run the C test
-        let run = std::process::Command::new(&test_binary)
-            .env("LD_LIBRARY_PATH", &target_dir)
-            .output()
-            .expect("Failed to run C test");
-        assert!(
-            run.status.success(),
-            "C test failed: {}{}",
-            String::from_utf8_lossy(&run.stdout),
-            String::from_utf8_lossy(&run.stderr)
-        );
+        let lib_dir = target_dir.join(&host).join("debug");
 
-        // Run the ASan canary: a deliberate use-after-free that ASan must catch
-        let canary = std::process::Command::new(&test_binary)
-            .arg("--asan-canary")
-            .env("LD_LIBRARY_PATH", &target_dir)
-            .output()
-            .expect("Failed to run ASan canary");
-        assert!(
-            !canary.status.success(),
-            "ASan canary should have crashed but didn't — is ASan working?"
-        );
-        let canary_stderr = String::from_utf8_lossy(&canary.stderr);
-        assert!(
-            canary_stderr.contains("AddressSanitizer"),
-            "ASan canary crashed but not from ASan: {}",
-            canary_stderr
-        );
+        // MSan requires clang — gcc doesn't support it
+        setup_cc_env(&host);
+        std::env::set_var("CC", "clang");
+        generate_c_header(tmp_dir.path());
+
+        let test_binary = tmp_dir.path().join("test_round_trip_msan");
+        compile_c_test(tmp_dir.path(), &lib_dir, "-fsanitize=memory", &test_binary);
+        run_c_test(&test_binary, &lib_dir);
+        run_sanitizer_canary(&test_binary, &lib_dir, "--msan-canary", "MemorySanitizer");
     }
 }
