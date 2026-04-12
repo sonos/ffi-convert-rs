@@ -352,6 +352,7 @@ mod tests {
         );
     }
 
+    #[cfg(any(feature = "asan", feature = "msan"))]
     const SANITIZER_EXIT_CODE: i32 = 42;
 
     #[cfg(any(feature = "asan", feature = "msan"))]
@@ -428,7 +429,10 @@ mod tests {
             .env("RUSTFLAGS", format!("-Zsanitizer={san}"));
             work_dir.join(&host).join("debug")
         } else {
-            cmd.args(["build", "-p", "ffi-convert-tests"]);
+            // Clear RUSTFLAGS to avoid inheriting sanitizer flags from the
+            // parent process 
+            cmd.args(["build", "-p", "ffi-convert-tests"])
+                .env("RUSTFLAGS", "");
             work_dir.join("debug")
         };
 
