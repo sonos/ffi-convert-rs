@@ -315,11 +315,7 @@ mod tests {
 
         // Compile the C test
         let mut build = cc::Build::new();
-        build
-            .include(work_dir)
-            .opt_level(0)
-            .target(host)
-            .host(host);
+        build.include(work_dir).opt_level(0).target(host).host(host);
         if let Some(cc) = compiler_override {
             build.compiler(cc);
         }
@@ -421,9 +417,15 @@ mod tests {
             .env("CARGO_TARGET_DIR", work_dir);
 
         let lib_dir = if let Some(san) = sanitizer {
-            cmd.args(["+nightly", "build", "-p", "ffi-convert-tests", "-Zbuild-std"])
-                .arg(format!("--target={host}"))
-                .env("RUSTFLAGS", format!("-Zsanitizer={san}"));
+            cmd.args([
+                "+nightly",
+                "build",
+                "-p",
+                "ffi-convert-tests",
+                "-Zbuild-std",
+            ])
+            .arg(format!("--target={host}"))
+            .env("RUSTFLAGS", format!("-Zsanitizer={san}"));
             work_dir.join(&host).join("debug")
         } else {
             cmd.args(["build", "-p", "ffi-convert-tests"]);
@@ -459,7 +461,14 @@ mod tests {
         let (lib_dir, host) = build_cdylib(&work_dir, Some("address"));
 
         let test_binary = work_dir.join("test_round_trip");
-        compile_c_test(&work_dir, &lib_dir, &host, Some("-fsanitize=address"), None, &test_binary);
+        compile_c_test(
+            &work_dir,
+            &lib_dir,
+            &host,
+            Some("-fsanitize=address"),
+            None,
+            &test_binary,
+        );
         run_c_test(&test_binary, &lib_dir);
         run_sanitizer_canary(&test_binary, &lib_dir, "--asan-canary", "ASAN_OPTIONS");
     }
@@ -473,7 +482,14 @@ mod tests {
 
         let test_binary = work_dir.join("test_round_trip_msan");
         // MSan requires clang — gcc doesn't support it
-        compile_c_test(&work_dir, &lib_dir, &host, Some("-fsanitize=memory"), Some("clang"), &test_binary);
+        compile_c_test(
+            &work_dir,
+            &lib_dir,
+            &host,
+            Some("-fsanitize=memory"),
+            Some("clang"),
+            &test_binary,
+        );
         run_c_test(&test_binary, &lib_dir);
         run_sanitizer_canary(&test_binary, &lib_dir, "--msan-canary", "MSAN_OPTIONS");
     }
