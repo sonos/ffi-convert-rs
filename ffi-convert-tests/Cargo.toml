@@ -13,9 +13,9 @@ ffi-convert = { path ="../ffi-convert" }
 libc = "0.2.66"
 
 [features]
+asan = []
 msan = []
 
 [dev-dependencies]
 cbindgen = "0.29"
 cc = "1"
-tempfile = "3"
