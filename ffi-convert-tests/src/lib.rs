@@ -430,7 +430,7 @@ mod tests {
             work_dir.join(&host).join("debug")
         } else {
             // Clear RUSTFLAGS to avoid inheriting sanitizer flags from the
-            // parent process 
+            // parent process
             cmd.args(["build", "-p", "ffi-convert-tests"])
                 .env("RUSTFLAGS", "");
             work_dir.join("debug")
