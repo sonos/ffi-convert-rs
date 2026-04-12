@@ -356,29 +356,34 @@ mod tests {
         );
     }
 
+    const SANITIZER_EXIT_CODE: i32 = 42;
+
     #[cfg(any(feature = "asan", feature = "msan"))]
     fn run_sanitizer_canary(
         binary: &std::path::Path,
         lib_dir: &std::path::Path,
         canary_flag: &str,
-        expected_stderr: &str,
+        sanitizer_options_env: &str,
     ) {
         let canary = std::process::Command::new(binary)
             .arg(canary_flag)
             .env("LD_LIBRARY_PATH", lib_dir)
+            .env(
+                sanitizer_options_env,
+                format!("exitcode={SANITIZER_EXIT_CODE}"),
+            )
             .output()
             .expect("Failed to run sanitizer canary");
-        assert!(
-            !canary.status.success(),
-            "Sanitizer canary ({}) should have crashed but didn't",
-            canary_flag
-        );
-        let stderr = String::from_utf8_lossy(&canary.stderr);
-        assert!(
-            stderr.contains(expected_stderr),
-            "Canary ({}) crashed but not from expected sanitizer: {}",
+        // The canary binary returns 0 if it ran to completion (sanitizer didn't
+        // fire). We expect the sanitizer to kill it with our configured exit code.
+        assert_eq!(
+            canary.status.code(),
+            Some(SANITIZER_EXIT_CODE),
+            "Sanitizer canary ({}) exited with unexpected code (expected {}):\nstdout: {}\nstderr: {}",
             canary_flag,
-            stderr
+            SANITIZER_EXIT_CODE,
+            String::from_utf8_lossy(&canary.stdout),
+            String::from_utf8_lossy(&canary.stderr),
         );
     }
 
@@ -456,7 +461,7 @@ mod tests {
         let test_binary = work_dir.join("test_round_trip");
         compile_c_test(&work_dir, &lib_dir, &host, Some("-fsanitize=address"), None, &test_binary);
         run_c_test(&test_binary, &lib_dir);
-        run_sanitizer_canary(&test_binary, &lib_dir, "--asan-canary", "AddressSanitizer");
+        run_sanitizer_canary(&test_binary, &lib_dir, "--asan-canary", "ASAN_OPTIONS");
     }
 
     #[test]
@@ -470,6 +475,6 @@ mod tests {
         // MSan requires clang — gcc doesn't support it
         compile_c_test(&work_dir, &lib_dir, &host, Some("-fsanitize=memory"), Some("clang"), &test_binary);
         run_c_test(&test_binary, &lib_dir);
-        run_sanitizer_canary(&test_binary, &lib_dir, "--msan-canary", "MemorySanitizer");
+        run_sanitizer_canary(&test_binary, &lib_dir, "--msan-canary", "MSAN_OPTIONS");
     }
 }

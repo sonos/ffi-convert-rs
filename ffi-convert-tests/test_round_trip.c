@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
@@ -168,39 +169,15 @@ void test_minimal_pancake(void) {
 }
 
 void test_asan_canary(void) {
-    /* Deliberately trigger a use-after-free to verify ASan is working. */
-    CDummy dummy = {.count = 0, .describe = ""};
-    CArray_CTopping toppings = {.data_ptr = NULL, .size = 0};
-    CLayer base_layers[3] = {
-        {.number = 0, .subtitle = NULL},
-        {.number = 0, .subtitle = NULL},
-        {.number = 0, .subtitle = NULL},
-    };
-    CRange_i32 range = {.start = 0, .end = 0};
-    CPancake pancake = {
-        .name = "canary",
-        .description = NULL,
-        .start = 0.0f,
-        .end = NULL,
-        .float_array = {0},
-        .dummy = dummy,
-        .sauce = NULL,
-        .toppings = &toppings,
-        .layers = NULL,
-        .base_layers = {base_layers[0], base_layers[1], base_layers[2]},
-        .is_delicious = false,
-        .range = range,
-        .flattened_range_start = 0,
-        .flattened_range_end = 0,
-        .field_with_specific_c_name = "",
-        .pancake_data = NULL,
-        .extra_ice_cream_flavor = Vanilla,
-    };
-
-    const CPancake *result = pancake_round_trip(&pancake);
-    pancake_free(result);
-    /* use-after-free: ASan should catch this */
-    printf("  asan canary (use-after-free): name=%s\n", result->name);
+    /* Deliberately trigger a heap-buffer-overflow to verify ASan is working.
+       Reading one byte past a heap allocation is caught by ASan but will
+       silently succeed without it (just reads adjacent heap memory). */
+    char *buf = (char *)malloc(1);
+    buf[0] = 'x';
+    /* volatile prevents the compiler from optimizing away the read */
+    char c = ((volatile char *)buf)[1]; /* one byte out of bounds */
+    printf("  asan canary (heap-buffer-overflow): read 0x%02x\n", (unsigned char)c);
+    free(buf);
 }
 
 void test_msan_canary(void) {
@@ -218,15 +195,17 @@ int main(int argc, char **argv) {
     if (argc > 1 && strcmp(argv[1], "--asan-canary") == 0) {
         printf("Triggering ASan canary (should crash):\n");
         test_asan_canary();
-        printf("ERROR: ASan did not catch use-after-free!\n");
-        return 1;
+        /* If we get here the sanitizer didn't fire. Return success so the
+           test harness can distinguish "sanitizer killed us" (non-zero)
+           from "canary ran to completion" (zero) via the exit code. */
+        return 0;
     }
 
     if (argc > 1 && strcmp(argv[1], "--msan-canary") == 0) {
         printf("Triggering MSan canary (should crash):\n");
         test_msan_canary();
-        printf("ERROR: MSan did not catch uninitialized read!\n");
-        return 1;
+        /* Same as above — return success if the sanitizer didn't fire. */
+        return 0;
     }
 
     printf("C round-trip tests:\n");
