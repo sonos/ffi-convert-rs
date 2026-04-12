@@ -287,16 +287,12 @@ mod tests {
         }
     });
 
-    fn setup_cc_env(host_target: &str) {
-        std::env::set_var("TARGET", host_target);
-        std::env::set_var("HOST", host_target);
-        std::env::set_var("OPT_LEVEL", "0");
-    }
-
     fn compile_c_test(
         work_dir: &std::path::Path,
         lib_dir: &std::path::Path,
+        host: &str,
         sanitizer_flag: Option<&str>,
+        compiler_override: Option<&str>,
         output: &std::path::Path,
     ) {
         let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -318,10 +314,16 @@ mod tests {
         bindings.write_to_file(&header_path);
 
         // Compile the C test
-        let compiler = cc::Build::new()
+        let mut build = cc::Build::new();
+        build
             .include(work_dir)
             .opt_level(0)
-            .get_compiler();
+            .target(host)
+            .host(host);
+        if let Some(cc) = compiler_override {
+            build.compiler(cc);
+        }
+        let compiler = build.get_compiler();
         let mut cmd = compiler.to_command();
         cmd.arg(manifest_dir.join("test_round_trip.c"));
         if let Some(flag) = sanitizer_flag {
@@ -434,23 +436,13 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(any(feature = "asan", feature = "msan")))]
     /// Plain C round-trip test without sanitizers (works on stable).
-    /// Disabled when the `asan` or `msan` features are enabled because those
-    /// tests set process-wide env vars (e.g. CC=clang) that would interfere.
     fn c_round_trip() {
-        // These tests compile and run a native C binary, skip in cross-compilation contexts.
-        if std::env::var("TARGET").is_ok_and(|t| t != std::env::var("HOST").unwrap_or_default()) {
-            eprintln!("Skipping c_round_trip: cross-compilation detected");
-            return;
-        }
-
         let work_dir = work_dir("c-test");
         let (lib_dir, host) = build_cdylib(&work_dir, None);
-        setup_cc_env(&host);
 
         let test_binary = work_dir.join("test_round_trip");
-        compile_c_test(&work_dir, &lib_dir, None, &test_binary);
+        compile_c_test(&work_dir, &lib_dir, &host, None, None, &test_binary);
         run_c_test(&test_binary, &lib_dir);
     }
 
@@ -460,10 +452,9 @@ mod tests {
     fn c_round_trip_asan() {
         let work_dir = work_dir("c-test-asan");
         let (lib_dir, host) = build_cdylib(&work_dir, Some("address"));
-        setup_cc_env(&host);
 
         let test_binary = work_dir.join("test_round_trip");
-        compile_c_test(&work_dir, &lib_dir, Some("-fsanitize=address"), &test_binary);
+        compile_c_test(&work_dir, &lib_dir, &host, Some("-fsanitize=address"), None, &test_binary);
         run_c_test(&test_binary, &lib_dir);
         run_sanitizer_canary(&test_binary, &lib_dir, "--asan-canary", "AddressSanitizer");
     }
@@ -474,12 +465,10 @@ mod tests {
     fn c_round_trip_msan() {
         let work_dir = work_dir("c-test-msan");
         let (lib_dir, host) = build_cdylib(&work_dir, Some("memory"));
-        // MSan requires clang — gcc doesn't support it
-        setup_cc_env(&host);
-        std::env::set_var("CC", "clang");
 
         let test_binary = work_dir.join("test_round_trip_msan");
-        compile_c_test(&work_dir, &lib_dir, Some("-fsanitize=memory"), &test_binary);
+        // MSan requires clang — gcc doesn't support it
+        compile_c_test(&work_dir, &lib_dir, &host, Some("-fsanitize=memory"), Some("clang"), &test_binary);
         run_c_test(&test_binary, &lib_dir);
         run_sanitizer_canary(&test_binary, &lib_dir, "--msan-canary", "MemorySanitizer");
     }
