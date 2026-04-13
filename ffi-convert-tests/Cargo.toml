@@ -1,6 +1,6 @@
 [package]
 name = "ffi-convert-tests"
-version = "0.7.0"
+version = "0.8.0-pre"
 authors = ["Sonos"]
 edition = "2018"
 
@@ -9,7 +9,7 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 anyhow = "1.0.32"
-ffi-convert = "0.7.0"
+ffi-convert = { path ="../ffi-convert" }
 libc = "0.2.66"
 
 [features]
