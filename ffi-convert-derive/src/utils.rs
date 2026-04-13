@@ -15,15 +15,24 @@ pub fn parse_no_drop_impl_flag(attrs: &[syn::Attribute]) -> bool {
     })
 }
 
-pub fn parse_struct_fields(data: &syn::Data) -> Vec<Field> {
-    match &data {
-        syn::Data::Struct(data_struct) => data_struct
-            .fields
-            .iter()
-            .map(parse_field)
-            .collect::<Vec<Field>>(),
-        _ => panic!("CReprOf / AsRust can only be derived for structs"),
-    }
+pub fn parse_struct_fields(data: &syn::DataStruct) -> Vec<Field<'_>> {
+    data.fields.iter().map(parse_field).collect::<Vec<Field>>()
+}
+
+pub fn parse_enum_variants(data: &syn::DataEnum) -> Vec<&syn::Ident> {
+    data.variants
+        .iter()
+        .map(|variant| {
+            if !variant.fields.is_empty() {
+                panic!(
+                    "CReprOf, AsRust, and CDrop derive for enums only supports unit variants \
+                     (no fields). Variant `{}` has fields.",
+                    variant.ident
+                );
+            }
+            &variant.ident
+        })
+        .collect()
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -45,7 +54,7 @@ pub struct Field<'a> {
     pub levels_of_indirection: u32,
 }
 
-pub fn parse_field(field: &syn::Field) -> Field {
+pub fn parse_field(field: &syn::Field) -> Field<'_> {
     let name = field.ident.as_ref().expect("Field should have an ident");
 
     let target_name = field
