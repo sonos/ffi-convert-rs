@@ -32,7 +32,7 @@ fn impl_asrust_struct(
             let Field {
                 name: field_name,
                 target_name: target_field_name,
-                ref field_type,
+                field_type,
                 ..
             } = field;
 

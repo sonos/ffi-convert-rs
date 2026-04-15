@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- move to edition 2024, MSRV 1.88
 
 ### Fixed
 - memory leak on array convertion error and performance / correctness improvement on array convertion

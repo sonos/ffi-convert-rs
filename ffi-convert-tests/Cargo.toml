@@ -2,7 +2,7 @@
 name = "ffi-convert-tests"
 version = "0.8.0-pre"
 authors = ["Sonos"]
-edition = "2018"
+edition = "2024"
 
 [lib]
 crate-type = ["rlib", "cdylib"]

@@ -25,7 +25,7 @@ fn impl_cdrop_struct(
         .map(|field| {
             let Field {
                 name: field_name,
-                ref field_type,
+                field_type,
                 ..
             } = field;
 

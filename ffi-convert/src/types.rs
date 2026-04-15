@@ -203,13 +203,13 @@ impl<T> RawPointerConverter<CArray<T>> for CArray<T> {
     unsafe fn from_raw_pointer(
         input: *const CArray<T>,
     ) -> Result<Self, UnexpectedNullPointerError> {
-        take_back_from_raw_pointer(input)
+        unsafe { take_back_from_raw_pointer(input) }
     }
 
     unsafe fn from_raw_pointer_mut(
         input: *mut CArray<T>,
     ) -> Result<Self, UnexpectedNullPointerError> {
-        take_back_from_raw_pointer_mut(input)
+        unsafe { take_back_from_raw_pointer_mut(input) }
     }
 }
 

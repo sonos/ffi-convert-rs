@@ -63,12 +63,12 @@ macro_rules! impl_rawpointerconverter_for {
             unsafe fn from_raw_pointer(
                 input: *const $typ,
             ) -> Result<Self, UnexpectedNullPointerError> {
-                take_back_from_raw_pointer(input)
+                unsafe { take_back_from_raw_pointer(input) }
             }
             unsafe fn from_raw_pointer_mut(
                 input: *mut $typ,
             ) -> Result<Self, UnexpectedNullPointerError> {
-                take_back_from_raw_pointer_mut(input)
+                unsafe { take_back_from_raw_pointer_mut(input) }
             }
         }
     };
@@ -156,14 +156,14 @@ pub trait RawPointerConverter<T>: Sized {
     /// # Safety
     /// This method is unsafe for the same reasons as [`Self::from_raw_pointer`]
     unsafe fn drop_raw_pointer(input: *const T) -> Result<(), UnexpectedNullPointerError> {
-        Self::from_raw_pointer(input).map(|_| ())
+        unsafe { Self::from_raw_pointer(input) }.map(|_| ())
     }
 
     /// Takes back control of a raw pointer created by [`Self::into_raw_pointer_mut`] and drops it.
     /// # Safety
     /// This method is unsafe for the same reasons a [`Self::from_raw_pointer_mut`]
     unsafe fn drop_raw_pointer_mut(input: *mut T) -> Result<(), UnexpectedNullPointerError> {
-        Self::from_raw_pointer_mut(input).map(|_| ())
+        unsafe { Self::from_raw_pointer_mut(input) }.map(|_| ())
     }
 }
 
@@ -181,7 +181,7 @@ pub fn convert_into_raw_pointer_mut<T>(pointee: T) -> *mut T {
 pub unsafe fn take_back_from_raw_pointer<T>(
     input: *const T,
 ) -> Result<T, UnexpectedNullPointerError> {
-    take_back_from_raw_pointer_mut(input as _)
+    unsafe { take_back_from_raw_pointer_mut(input as _) }
 }
 
 #[doc(hidden)]
@@ -191,7 +191,7 @@ pub unsafe fn take_back_from_raw_pointer_mut<T>(
     if input.is_null() {
         Err(UnexpectedNullPointerError)
     } else {
-        Ok(*Box::from_raw(input))
+        Ok(*unsafe { Box::from_raw(input) })
     }
 }
 
@@ -218,7 +218,7 @@ pub trait RawBorrowMut<T> {
 /// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
 impl<T> RawBorrow<T> for T {
     unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, UnexpectedNullPointerError> {
-        input.as_ref().ok_or(UnexpectedNullPointerError)
+        unsafe { input.as_ref() }.ok_or(UnexpectedNullPointerError)
     }
 }
 
@@ -227,7 +227,7 @@ impl<T> RawBorrowMut<T> for T {
     unsafe fn raw_borrow_mut<'a>(
         input: *mut T,
     ) -> Result<&'a mut Self, UnexpectedNullPointerError> {
-        input.as_mut().ok_or(UnexpectedNullPointerError)
+        unsafe { input.as_mut() }.ok_or(UnexpectedNullPointerError)
     }
 }
 
@@ -243,7 +243,7 @@ impl RawPointerConverter<libc::c_void> for std::ffi::CString {
     unsafe fn from_raw_pointer(
         input: *const libc::c_void,
     ) -> Result<Self, UnexpectedNullPointerError> {
-        Self::from_raw_pointer_mut(input as *mut libc::c_void)
+        unsafe { Self::from_raw_pointer_mut(input as *mut libc::c_void) }
     }
 
     unsafe fn from_raw_pointer_mut(
@@ -252,7 +252,7 @@ impl RawPointerConverter<libc::c_void> for std::ffi::CString {
         if input.is_null() {
             Err(UnexpectedNullPointerError)
         } else {
-            Ok(std::ffi::CString::from_raw(input as *mut libc::c_char))
+            Ok(unsafe { std::ffi::CString::from_raw(input as *mut libc::c_char) })
         }
     }
 }
@@ -269,7 +269,7 @@ impl RawPointerConverter<libc::c_char> for std::ffi::CString {
     unsafe fn from_raw_pointer(
         input: *const libc::c_char,
     ) -> Result<Self, UnexpectedNullPointerError> {
-        Self::from_raw_pointer_mut(input as *mut libc::c_char)
+        unsafe { Self::from_raw_pointer_mut(input as *mut libc::c_char) }
     }
 
     unsafe fn from_raw_pointer_mut(
@@ -278,7 +278,7 @@ impl RawPointerConverter<libc::c_char> for std::ffi::CString {
         if input.is_null() {
             Err(UnexpectedNullPointerError)
         } else {
-            Ok(std::ffi::CString::from_raw(input as *mut libc::c_char))
+            Ok(unsafe { std::ffi::CString::from_raw(input as *mut libc::c_char) })
         }
     }
 }
@@ -290,7 +290,7 @@ impl RawBorrow<libc::c_char> for std::ffi::CStr {
         if input.is_null() {
             Err(UnexpectedNullPointerError)
         } else {
-            Ok(Self::from_ptr(input))
+            Ok(unsafe { Self::from_ptr(input) })
         }
     }
 }
@@ -393,7 +393,7 @@ where
         // SAFETY: `array` is certain to be initialized
         let array = unsafe {
             // TODO: array_assume_init: https://github.com/rust-lang/rust/issues/96097
-            (core::ptr::addr_of!(array).cast::<[T; N]>()).read()
+            (&raw const array).cast::<[T; N]>().read()
         };
         Ok(array)
     }
@@ -404,12 +404,8 @@ impl<T: CDrop, const N: usize> CDrop for [T; N] {
         let mut result = Ok(());
 
         for value in self {
-            // TODO: edition 2024 let chains: https://doc.rust-lang.org/edition-guide/rust-2024/let-chains.html
-            if let Err(err) = value.do_drop() {
-                // Assign error only if none is already set, preserving the first error
-                if result.is_ok() {
-                    result = Err(err);
-                }
+            if let Err(err) = value.do_drop() && result.is_ok() {
+                result = Err(err);
             }
         }
 
@@ -445,7 +441,7 @@ impl<U: AsRust<T>, T, const N: usize> AsRust<[T; N]> for [U; N] {
         // SAFETY: `array` is certain to be initialized
         let array = unsafe {
             // TODO: array_assume_init: https://github.com/rust-lang/rust/issues/96097
-            (core::ptr::addr_of!(array).cast::<[T; N]>()).read()
+            (&raw const array).cast::<[T; N]>().read()
         };
         Ok(array)
     }
