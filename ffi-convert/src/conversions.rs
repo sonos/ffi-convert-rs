@@ -1,4 +1,5 @@
 use std::ffi::NulError;
+use std::mem::MaybeUninit;
 use std::str::Utf8Error;
 
 use thiserror::Error;
@@ -365,52 +366,87 @@ impl<U, T: CReprOf<U>, const N: usize> CReprOf<[U; N]> for [T; N]
 where
     [T; N]: CDrop,
 {
-    fn c_repr_of(input: [U; N]) -> Result<[T; N], CReprOfError> {
-        // TODO passing through a Vec here is a bit ugly, but as the conversion call may fail,
-        // TODO we don't want tobe in the case where we're in the middle of the conversion of the
-        // TODO array and we encounter an error, hence leaving the array partially uninitialised for
-        // TODO rust to try to cleanup. the try_map unstable method on array would be nice here
-        let result_vec: Result<Vec<T>, CReprOfError> =
-            input.into_iter().map(T::c_repr_of).collect();
-        let vec = result_vec?;
+    fn c_repr_of(values: [U; N]) -> Result<[T; N], CReprOfError> {
+        let mut array: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
 
-        assert_eq!(vec.len(), N);
+        for (n, value) in values.into_iter().enumerate() {
+            let item = &mut array[n];
 
-        let mut result: [T; N] = unsafe { std::mem::zeroed() }; // we'll replace everything so "should" be good
+            match T::c_repr_of(value) {
+                Ok(value) => {
+                    item.write(value);
+                }
+                Err(err) => {
+                    // Drop initialized items
+                    for item in &mut array[0..n] {
+                        // SAFETY: `item` is certain to be initialized
+                        unsafe {
+                            let _ = item.assume_init_mut().do_drop();
+                        }
+                    }
 
-        for (i, t) in vec.into_iter().enumerate() {
-            result[i] = t;
+                    return Err(err);
+                }
+            }
         }
 
-        Ok(result)
+        // SAFETY: `array` is certain to be initialized
+        let array = unsafe {
+            // TODO: array_assume_init: https://github.com/rust-lang/rust/issues/96097
+            (core::ptr::addr_of!(array).cast::<[T; N]>()).read()
+        };
+        Ok(array)
     }
 }
 
 impl<T: CDrop, const N: usize> CDrop for [T; N] {
     fn do_drop(&mut self) -> Result<(), CDropError> {
-        let result: Result<Vec<()>, CDropError> = self.iter_mut().map(T::do_drop).collect();
-        result?;
-        Ok(())
+        let mut result = Ok(());
+
+        for value in self {
+            // TODO: edition 2024 let chains: https://doc.rust-lang.org/edition-guide/rust-2024/let-chains.html
+            if let Err(err) = value.do_drop() {
+                // Assign error only if none is already set, preserving the first error
+                if result.is_ok() {
+                    result = Err(err);
+                }
+            }
+        }
+
+        result
     }
 }
 
 impl<U: AsRust<T>, T, const N: usize> AsRust<[T; N]> for [U; N] {
     fn as_rust(&self) -> Result<[T; N], AsRustError> {
-        // TODO passing through a Vec here is a bit ugly, but as the conversion call may fail,
-        // TODO we don't want tobe in the case where we're in the middle of the conversion of the
-        // TODO array and we encounter an error, hence leaving the array partially uninitialised for
-        // TODO rust to try to cleanup. the try_map unstable method on array would be nice here
-        let result_vec: Result<Vec<T>, AsRustError> = self.iter().map(U::as_rust).collect();
-        let vec = result_vec?;
+        let mut array: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
 
-        assert_eq!(vec.len(), N);
+        for (n, value) in self.iter().enumerate() {
+            let item = &mut array[n];
 
-        let mut result: [T; N] = unsafe { std::mem::zeroed() }; // we'll replace everything so "should" be good
+            match value.as_rust() {
+                Ok(value) => {
+                    item.write(value);
+                }
+                Err(err) => {
+                    // Drop initialized items
+                    for item in &mut array[0..n] {
+                        // SAFETY: `item` is certain to be initialized
+                        unsafe {
+                            item.assume_init_drop();
+                        }
+                    }
 
-        for (i, t) in vec.into_iter().enumerate() {
-            result[i] = t;
+                    return Err(err);
+                }
+            }
         }
 
-        Ok(result)
+        // SAFETY: `array` is certain to be initialized
+        let array = unsafe {
+            // TODO: array_assume_init: https://github.com/rust-lang/rust/issues/96097
+            (core::ptr::addr_of!(array).cast::<[T; N]>()).read()
+        };
+        Ok(array)
     }
 }
