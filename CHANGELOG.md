@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+
+### Changed
+
+### Fixed
+- memory leak on array convertion error and performance / correctness improvement on array convertion
+
+## [0.7.0]
+### Added
 - unit enum support
 - added C roundtrips tests with address sanitizer and memory sanitizer
 
@@ -102,7 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
  - first release
 
-[Unreleased]: https://github.com/sonos/ffi-convert-rs/compare/0.6.2...HEAD
+[Unreleased]: https://github.com/sonos/ffi-convert-rs/compare/0.7.0...HEAD
+[0.7.0]: https://github.com/sonos/ffi-convert-rs/compare/0.6.2...0.7.0
 [0.6.2]: https://github.com/sonos/ffi-convert-rs/compare/0.6.1...0.6.2
 [0.6.1]: https://github.com/sonos/ffi-convert-rs/compare/0.6.0...0.6.1
 [0.6.0]: https://github.com/sonos/ffi-convert-rs/compare/0.5.0...0.6.0
