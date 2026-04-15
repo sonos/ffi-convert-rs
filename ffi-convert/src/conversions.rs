@@ -212,7 +212,7 @@ pub trait RawBorrowMut<T> {
     /// # Safety
     /// As this is using `*mut T:as_ref()` this is unsafe for exactly the same reasons.
     unsafe fn raw_borrow_mut<'a>(input: *mut T)
-        -> Result<&'a mut Self, UnexpectedNullPointerError>;
+    -> Result<&'a mut Self, UnexpectedNullPointerError>;
 }
 
 /// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
@@ -404,7 +404,9 @@ impl<T: CDrop, const N: usize> CDrop for [T; N] {
         let mut result = Ok(());
 
         for value in self {
-            if let Err(err) = value.do_drop() && result.is_ok() {
+            if let Err(err) = value.do_drop()
+                && result.is_ok()
+            {
                 result = Err(err);
             }
         }

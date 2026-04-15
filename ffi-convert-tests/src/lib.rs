@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use ffi_convert::*;
 use std::ops::Range;
 

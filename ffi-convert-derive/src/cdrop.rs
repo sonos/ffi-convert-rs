@@ -1,4 +1,4 @@
-use crate::utils::{parse_no_drop_impl_flag, parse_struct_fields, Field, TypeArrayOrTypePath};
+use crate::utils::{Field, TypeArrayOrTypePath, parse_no_drop_impl_flag, parse_struct_fields};
 use proc_macro::TokenStream;
 use quote::quote;
 
