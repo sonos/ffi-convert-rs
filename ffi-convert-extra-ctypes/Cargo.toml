@@ -1,15 +1,14 @@
 [package]
-name = "ffi-convert"
+name = "ffi-convert-extra-ctypes"
 version = "0.8.0-pre"
 authors = ["Sonos", "Anthony Reinette", "Thibaut Lorrain"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
-description = "A collection of utilities to ease conversion between Rust and C-compatible data structures."
+description = "Extra C-compatible utility types for ffi-convert mirroring std types."
 repository = "https://github.com/sonos/ffi-convert-rs"
 readme = "../README.md"
 keywords = ["ffi"]
 
 [dependencies]
-ffi-convert-derive = { path = "../ffi-convert-derive" }
-thiserror = "2.0.12"
+ffi-convert = { path = "../ffi-convert" }
 libc = "0.2"

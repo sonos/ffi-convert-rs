@@ -1,5 +1,6 @@
 use anyhow::{Result, bail};
 use ffi_convert::*;
+use ffi_convert_extra_ctypes::{CArray, CRange};
 use std::ops::Range;
 
 #[macro_export]
@@ -303,7 +304,7 @@ mod tests {
         config.language = cbindgen::Language::C;
         config.parse = cbindgen::ParseConfig {
             parse_deps: true,
-            include: Some(vec!["ffi-convert".to_string()]),
+            include: Some(vec!["ffi-convert-extra-ctypes".to_string()]),
             ..Default::default()
         };
         let bindings = cbindgen::Builder::new()
