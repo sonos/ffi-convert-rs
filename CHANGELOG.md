@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - memory leak on array convertion error and performance / correctness improvement on array convertion
 
-## [0.7.0]
+## [0.7.0] - 2026-04-13
 ### Added
 - unit enum support
 - added C roundtrips tests with address sanitizer and memory sanitizer
