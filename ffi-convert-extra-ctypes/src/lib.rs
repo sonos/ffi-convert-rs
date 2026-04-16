@@ -1,9 +1,24 @@
-//! Extra C-compatible utility types for [`ffi_convert`].
+//! C-compatible mirrors of a few standard Rust containers, for use with
+//! [`ffi-convert`](https://docs.rs/ffi-convert).
 //!
-//! These types mirror common stdlib types ([`Vec<String>`], [`Vec<T>`], [`std::ops::Range`])
-//! with C-compatible representations. They are provided as a convenience but are not
-//! required to use the `ffi-convert` core crate: users who prefer to define their own
-//! layouts can skip this crate entirely.
+//! The three types exposed here cover the containers most FFI boundaries
+//! inevitably need:
+//!
+//! | Rust type        | C-compatible mirror            |
+//! |------------------|--------------------------------|
+//! | `Vec<T>`         | [`CArray<T>`]                  |
+//! | `Vec<String>`    | [`CStringArray`]               |
+//! | `std::ops::Range<T>` | [`CRange<T>`]              |
+//!
+//! Each mirror implements [`CReprOf`](ffi_convert::CReprOf),
+//! [`AsRust`](ffi_convert::AsRust), and [`CDrop`](ffi_convert::CDrop), so it
+//! can be embedded in any struct you derive the conversion traits on — see
+//! the top-level [`ffi-convert`](https://docs.rs/ffi-convert) documentation
+//! for how the pieces fit together.
+//!
+//! This crate is optional: if none of these types fit your layout, depend on
+//! `ffi-convert` alone and define your own `#[repr(C)]` container with the
+//! conversion trait impls you need.
 
 mod c_array;
 mod c_range;

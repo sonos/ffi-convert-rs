@@ -74,63 +74,115 @@ macro_rules! impl_rawpointerconverter_for {
     };
 }
 
+/// Error returned by [`CReprOf::c_repr_of`].
 #[derive(Error, Debug)]
 pub enum CReprOfError {
+    /// A Rust [`String`] contained an interior `NUL` byte and therefore could
+    /// not be converted to a C string.
     #[error("A string contains a nul bit")]
     StringContainsNullBit(#[from] NulError),
+    /// Custom error returned by a manual or overridden implementation.
     #[error("An error occurred during conversion to C repr; {}", .0)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
-/// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
-/// type that can be created from an value of this type.
+/// Consuming conversion **from** an idiomatic Rust value **to** its
+/// `#[repr(C)]` mirror.
+///
+/// Implementing `CReprOf<U>` for `T` states that `T` is a C-compatible layout
+/// of the Rust value `U` and that a `T` can be built from a `U`. The
+/// implementation owns any heap memory it allocates, and that memory is
+/// reclaimed by the corresponding [`CDrop`] implementation.
+///
+/// `CReprOf` and [`CDrop`] share an ownership contract — each allocation
+/// `c_repr_of` performs must be freeable by `do_drop`, and vice versa. The
+/// derives enforce that contract by generating both sides together. If one
+/// is derived, the other must be too; mixing a derived impl with a
+/// hand-written one is a recipe for double frees or leaks.
 pub trait CReprOf<T>: Sized + CDrop {
+    /// Consume `input` and return its C-compatible representation.
     fn c_repr_of(input: T) -> Result<Self, CReprOfError>;
 }
 
+/// Error returned by [`CDrop::do_drop`].
 #[derive(Error, Debug)]
 pub enum CDropError {
+    /// A non-nullable pointer field was found to be null while dropping.
     #[error("unexpected null pointer")]
     NullPointer(#[from] UnexpectedNullPointerError),
+    /// Custom error returned by a manual implementation.
     #[error("An error occurred while dropping C struct: {}", .0)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
-/// Trait showing that the C-like struct implementing it can free up its part of memory that are not
-/// managed by Rust.
+/// Releases any heap memory owned by a C-compatible value that is not managed
+/// by Rust's regular `Drop` mechanism (typically `Box`-allocated data behind
+/// raw pointer fields).
+///
+/// The [`#[derive(CDrop)]`](ffi_convert_derive::CDrop) macro emits both a
+/// [`CDrop`] and a matching [`Drop`] impl that calls
+/// [`do_drop`](CDrop::do_drop). The two should always ship together —
+/// a [`CDrop`] impl by itself does nothing until something calls `do_drop`,
+/// so leaving the value to Rust's regular `drop` leaks every pointer field
+/// it owns. Use `#[no_drop_impl]` only when you need to write [`Drop`]
+/// yourself, and make sure that manual [`Drop`] calls `do_drop`.
+///
+/// [`CDrop`] and [`CReprOf`] share an ownership contract: the derived
+/// [`CDrop`] assumes every pointer field was produced by the derived
+/// [`CReprOf`] (i.e. via `Box::into_raw`). Mixing a derived [`CDrop`] with
+/// a hand-written [`CReprOf`] — or vice versa — is how you get double
+/// frees or leaks. Derive both or write both.
 pub trait CDrop {
+    /// Release any Rust-owned memory referenced by `self`. Typically called
+    /// from the generated [`Drop`] implementation; in that case errors are
+    /// silently ignored.
     fn do_drop(&mut self) -> Result<(), CDropError>;
 }
 
+/// Error returned by [`AsRust::as_rust`].
 #[derive(Error, Debug)]
 pub enum AsRustError {
+    /// A non-nullable pointer field was null.
     #[error("unexpected null pointer")]
     NullPointer(#[from] UnexpectedNullPointerError),
-
+    /// A C string field was not valid UTF-8.
     #[error("could not convert string as it is not UTF-8: {}", .0)]
     Utf8Error(#[from] Utf8Error),
+    /// Custom error returned by a manual implementation.
     #[error("An error occurred during conversion to Rust: {}", .0)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
-/// Trait showing that the struct implementing it is a `repr(C)` compatible view of the parametrized
-/// type and that an instance of the parametrized type can be created form this struct
+/// Non-consuming conversion **from** a `#[repr(C)]` value **back** to an
+/// owned, idiomatic Rust value.
+///
+/// `AsRust<U>` takes `&self` and returns a freshly-allocated `U`, performing a
+/// deep copy of any pointer field it owns. After the call the original
+/// C-compatible struct is still valid — only the C side is expected to free
+/// it.
 pub trait AsRust<T> {
+    /// Return a freshly-allocated Rust value equivalent to `self`.
     fn as_rust(&self) -> Result<T, AsRustError>;
 }
 
+/// Returned whenever a raw pointer was expected to be non-null but was.
 #[derive(Error, Debug)]
 #[error("Could not use raw pointer: unexpected null pointer")]
 pub struct UnexpectedNullPointerError;
 
-/// Trait representing the creation of a raw pointer from a struct and the recovery of said pointer.
+/// Boxes a Rust value into a raw pointer suitable for crossing an FFI
+/// boundary, and takes it back.
 ///
-/// The `from_raw_pointer` function should be used only on pointers obtained through the
-/// `into_raw_pointer` method (and is thus unsafe as we don't have any way to get insurance of that
-/// from the compiler).
+/// `into_raw_pointer` leaks the value (via [`Box::into_raw`]) and must be
+/// paired with a later [`from_raw_pointer`](RawPointerConverter::from_raw_pointer)
+/// or [`drop_raw_pointer`](RawPointerConverter::drop_raw_pointer) call to
+/// avoid a leak. If you only need to read the value behind the pointer
+/// without taking ownership — because the C caller still owns the allocation
+/// — use [`RawBorrow`] instead.
 ///
-/// The `from_raw_pointer` effectively takes back ownership of the pointer. If you didn't create the
-/// pointer yourself, please use the `as_ref` method on the raw pointer to borrow it
+/// The `from_raw_pointer` family is unsafe because the compiler cannot verify
+/// that the pointer was actually produced by `into_raw_pointer`. Calling it
+/// twice on the same pointer is a double free.
 pub trait RawPointerConverter<T>: Sized {
     /// Creates a raw pointer from the value and leaks it, you should use [`Self::from_raw_pointer`]
     /// or [`Self::drop_raw_pointer`] to free the value when you're done with it.
@@ -195,34 +247,40 @@ pub unsafe fn take_back_from_raw_pointer_mut<T>(
     }
 }
 
-/// Trait to create borrowed references to type T, from a raw pointer to a T. Note that this is
-/// implemented for all types.
+/// Turn a `*const T` into a borrowed `&T` without taking ownership.
+///
+/// Use this when the pointer was handed to you by C and the C side retains
+/// ownership of the allocation. Blanket-implemented for every `T`; also
+/// implemented for [`std::ffi::CStr`] over `*const libc::c_char`.
 pub trait RawBorrow<T> {
-    /// Get a reference on the value behind the pointer or return an error if the pointer is `null`.
+    /// Borrow the value behind `input`, or return
+    /// [`UnexpectedNullPointerError`] if it is null.
+    ///
     /// # Safety
-    /// As this is using `*const T::as_ref()` this is unsafe for exactly the same reasons.
+    /// This is a thin wrapper around `<*const T>::as_ref` and is unsafe for
+    /// the same reasons: `input` must point to a valid, properly aligned
+    /// `T` that lives for at least `'a`.
     unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, UnexpectedNullPointerError>;
 }
 
-/// Trait to create mutable borrowed references to type T, from a raw pointer to a T. Note that this
-/// is implemented for all types.
+/// Mutable counterpart of [`RawBorrow`].
 pub trait RawBorrowMut<T> {
-    /// Get a mutable reference on the value behind the pointer or return an error if the pointer is
-    /// `null`.
+    /// Borrow the value behind `input` mutably, or return
+    /// [`UnexpectedNullPointerError`] if it is null.
+    ///
     /// # Safety
-    /// As this is using `*mut T:as_ref()` this is unsafe for exactly the same reasons.
+    /// This is a thin wrapper around `<*mut T>::as_mut` and is unsafe for the
+    /// same reasons.
     unsafe fn raw_borrow_mut<'a>(input: *mut T)
     -> Result<&'a mut Self, UnexpectedNullPointerError>;
 }
 
-/// Trait that allows obtaining a borrowed reference to a type T from a raw pointer to T
 impl<T> RawBorrow<T> for T {
     unsafe fn raw_borrow<'a>(input: *const T) -> Result<&'a Self, UnexpectedNullPointerError> {
         unsafe { input.as_ref() }.ok_or(UnexpectedNullPointerError)
     }
 }
 
-/// Trait that allows obtaining a mutable borrowed reference to a type T from a raw pointer to T
 impl<T> RawBorrowMut<T> for T {
     unsafe fn raw_borrow_mut<'a>(
         input: *mut T,

@@ -2,8 +2,11 @@ use std::ops::Range;
 
 use ffi_convert::{AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError};
 
-/// A utility type to represent range.
-/// Note that the parametrized type T should have `CReprOf` and `AsRust` trait implemented.
+/// A `#[repr(C)]` mirror of [`std::ops::Range<U>`] where
+/// `T: CReprOf<U> + AsRust<U>`.
+///
+/// Contains a plain `(start, end)` pair — no allocation involved. Use it as
+/// a field type when a struct needs to expose a range through FFI.
 ///
 /// # Example
 ///

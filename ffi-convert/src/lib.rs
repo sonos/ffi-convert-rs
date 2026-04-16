@@ -1,68 +1,57 @@
-//! A collection of utilities (traits, data structures, conversion functions, etc ...) to ease conversion between Rust and C-compatible data structures.
+//! Traits and helpers to convert between idiomatic Rust values and C-compatible
+//! representations when crossing an FFI boundary.
 //!
-//! Through two **conversion traits**, [`CReprOf`] and [`AsRust`], this crate provides a framework to convert idiomatic Rust structs to C-compatible structs that can pass through an FFI boundary, and conversely.
-//! They ensure that the developer uses best practices when performing the conversion in both directions (ownership-wise).
+//! The crate is built around two conversion traits,
+//! [`CReprOf`] and [`AsRust`], and two supporting traits,
+//! [`CDrop`] and [`RawPointerConverter`]. Together they form a small framework
+//! that makes it hard to get ownership wrong while moving data across the
+//! boundary in either direction. Deriving them (via the companion
+//! [`ffi-convert-derive`](https://docs.rs/ffi-convert-derive) crate, re-exported
+//! here) removes most of the boilerplate.
 //!
-//! The crate also provides a collection of useful utility functions and traits to perform conversions of types.
-//! It goes hand in hand with the `ffi-convert-derive` crate as it provides an **automatic derivation** of the [`CReprOf`] and [`AsRust`] trait.
+//! Common containers (arrays, string arrays, ranges) live in the separate
+//! [`ffi-convert-extra-ctypes`](https://docs.rs/ffi-convert-extra-ctypes) crate
+//! so that users who want to define their own C layouts can skip them.
 //!
-//! # Usage
-//! When dealing with an FFI frontier, the general philosophy of the crate is :  
-//! - When receiving pointers to structs created by C code, the struct is immediately converted to an owned (via a copy), idiomatic Rust struct through the use of the [`AsRust`] trait.
-//! - To send an idiomatic, owned Rust struct to C code, the struct is converted to C-compatible representation using the [`CReprOf`] trait.
+//! # Philosophy
 //!
-//! ## Example
+//! When a pointer crosses the FFI boundary, decide *once* which side owns it:
 //!
-//! We want to be able to convert a **`Pizza`** Rust struct that has an idiomatic representation to a **`CPizza`** Rust struct that has a C-compatible representation in memory.
-//! We start by defining the fields of the `Pizza` struct :
+//! - **Incoming from C**: immediately convert to an owned, idiomatic Rust value
+//!   with [`AsRust`]. After that call the Rust value is fully self-contained
+//!   and the C-side struct can be dropped or handed back to the caller.
+//! - **Outgoing to C**: build a C-compatible struct from an owned Rust value
+//!   with [`CReprOf`]. That struct now owns whatever heap memory it points to
+//!   and must eventually be freed via [`CDrop`] (typically by sending the
+//!   pointer back to Rust through a `free`-style FFI function that calls
+//!   [`RawPointerConverter::from_raw_pointer`]).
+//!
+//! # Quick example
+//!
+//! Define the Rust type you want to expose, then define its `#[repr(C)]`
+//! mirror and derive the conversion traits. The mirror's fields use
+//! C-compatible types (see [the mapping table](#type-mapping)).
+//!
 //! ```
-//! # struct Sauce {};
+//! use ffi_convert::{AsRust, CDrop, CReprOf, RawBorrow, RawPointerConverter};
+//! use libc::{c_char, c_float};
+//!
+//! pub struct Sauce {
+//!     pub spiciness: f32,
+//! }
+//!
+//! #[repr(C)]
+//! #[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+//! #[target_type(Sauce)]
+//! pub struct CSauce {
+//!     pub spiciness: c_float,
+//! }
+//!
 //! pub struct Pizza {
 //!     pub name: String,
 //!     pub base: Option<Sauce>,
 //!     pub weight: f32,
 //! }
-//!```
-//!
-//! We then create the C-compatible struct by [mapping](#types-representations-mapping) idiomatic Rust types to C-compatible types :
-//! ```
-//! # struct CSauce {};
-//! #[repr(C)]
-//! pub struct CPizza {
-//!     pub name: *const libc::c_char,
-//!     pub base: *const CSauce,
-//!     pub weight: libc::c_float,
-//! }
-//! ```
-//!
-//! This crate provides two traits that are useful for converting between Pizza to CPizza and conversely.
-//!
-//! ```ignore
-//!    CPizza::c_repr_of(pizza)
-//!      <=================|
-//!
-//! CPizza                   Pizza
-//!
-//!      |=================>
-//!       cpizza.as_rust()
-//!
-//! ```
-//! Instead of manually writing the body of the conversion traits, we can derive them :
-//!
-//! ```
-//! # use ffi_convert::{CReprOf, AsRust, CDrop, RawPointerConverter};
-//! # use ffi_convert::RawBorrow;
-//! # struct Pizza {
-//! #     name: String,
-//! #     base: Option<Sauce>,
-//! #     weight: f32
-//! # };
-//! use libc::{c_char, c_float};
-//!
-//! struct Sauce {};
-//! #[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
-//! #[target_type(Sauce)]
-//! struct CSauce {};
 //!
 //! #[repr(C)]
 //! #[derive(CReprOf, AsRust, CDrop)]
@@ -73,134 +62,185 @@
 //!     pub base: *const CSauce,
 //!     pub weight: c_float,
 //! }
+//!
+//! // Rust -> C
+//! let pizza = Pizza {
+//!     name: "Margarita".to_owned(),
+//!     base: Some(Sauce { spiciness: 1.5 }),
+//!     weight: 450.0,
+//! };
+//! let c_pizza = CPizza::c_repr_of(pizza).unwrap();
+//!
+//! // C -> Rust
+//! let pizza_again: Pizza = c_pizza.as_rust().unwrap();
+//! assert_eq!(pizza_again.name, "Margarita");
+//! // `c_pizza` still owns the C strings it allocated; its `Drop` impl will
+//! // free them when it goes out of scope.
 //! ```
 //!
-//! You may have noticed that you have to derive two traits : the CDrop trait and the RawPointerConverter trait.
+//! Two things to notice:
 //!
-//! The CDrop trait needs to be implemented on every C-compatible struct that require manual resource management.
-//! The release of those resources should be done in the drop method of the CDrop trait.
+//! - `CSauce` derives [`RawPointerConverter`] because `CPizza::base` stores a
+//!   `*const CSauce`, and the derived [`CReprOf`] for `CPizza` needs to
+//!   convert a `CSauce` value into that raw pointer.
+//! - `CPizza::base` is annotated with `#[nullable]` because the Rust field is
+//!   `Option<Sauce>`; without the attribute the derive would not know to map
+//!   `None` to the null pointer.
 //!
-//! The RawPointerConverter trait is implemented to perform the conversion of a C-like struct to a raw-pointer to this C-like structure (and conversely).
-//! Here, it is used behind the scene to convert a `CSauce` struct to a pointer to a raw pointer to CSause struct : `*const CSauce`
-//! (needed behind the scenes when the [`CReprOf`] trait is derived for `CPizza`).
+//! # Type mapping
 //!
-//! You can now pass the `CPizza` struct through your FFI boundary !
+//! `T: CReprOf<U> + AsRust<U>` — in the table below, `T` is the C-compatible
+//! type and `U` is the idiomatic Rust type.
 //!
-
-//! ## Types representations mapping
+//! | C type                 | Rust type (`U`)   | C-compatible Rust type (`T`)                                                                                | Provided by                  |
+//! |------------------------|-------------------|-------------------------------------------------------------------------------------------------------------|------------------------------|
+//! | any scalar (`int`, …)  | same scalar       | same scalar                                                                                                 | `ffi-convert`                |
+//! | `const char*`          | `String`          | `*const libc::c_char`                                                                                       | `ffi-convert`                |
+//! | `const T*`             | `U`               | `*const T`                                                                                                  | `ffi-convert`                |
+//! | `T*`                   | `U`               | `*mut T`                                                                                                    | `ffi-convert`                |
+//! | `const T*` (nullable)  | `Option<U>`       | `*const T` with `#[nullable]`                                                                               | `ffi-convert`                |
+//! | `T[N]`                 | `[U; N]`          | `[T; N]`                                                                                                    | `ffi-convert`                |
+//! | `CArrayT`              | `Vec<U>`          | [`CArray<T>`](https://docs.rs/ffi-convert-extra-ctypes/latest/ffi_convert_extra_ctypes/struct.CArray.html) | `ffi-convert-extra-ctypes`   |
+//! | `CStringArray`         | `Vec<String>`     | [`CStringArray`](https://docs.rs/ffi-convert-extra-ctypes/latest/ffi_convert_extra_ctypes/struct.CStringArray.html) | `ffi-convert-extra-ctypes`   |
+//! | `CRangeT`              | `Range<U>`        | [`CRange<T>`](https://docs.rs/ffi-convert-extra-ctypes/latest/ffi_convert_extra_ctypes/struct.CRange.html) | `ffi-convert-extra-ctypes`   |
 //!
-//! `T : CReprOf<U> + AsRust<U>`
+//! Users are free to define additional C-compatible layouts for their own
+//! container-like types by implementing the traits directly.
 //!
-//! The rows below marked as coming from the companion
-//! [`ffi-convert-extra-ctypes`](https://docs.rs/ffi-convert-extra-ctypes) crate are
-//! optional: they cover common container shapes but users are free to define their own
-//! C-compatible layouts and skip that crate entirely.
+//! # Traits at a glance
 //!
-//! <table>
-//!     <thead>
-//!         <tr>
-//!             <th>C type</th>
-//!             <th>Rust type</th>
-//!             <th>C-compatible Rust type</th>
-//!             <th>Provided by</th>
-//!         </tr>
-//!     </thead>
-//!     <tbody>
-//!         <tr>
-//!             <td><code>const char*</code></td>
-//!             <td><code>String</code></td>
-//!             <td><code>*const libc::c_char</code></td>
-//!             <td><code>ffi-convert</code></td>
-//!         </tr>
-//!         <tr>
-//!             <td><code>const T*</code></td>
-//!             <td><code>U</code></td>
-//!             <td><code>*const T</code></td>
-//!             <td><code>ffi-convert</code></td>
-//!         </tr>
-//!         <tr>
-//!             <td><code>T*</code></td>
-//!             <td><code>U</code></td>
-//!             <td><code>*mut T</code></td>
-//!             <td><code>ffi-convert</code></td>
-//!         </tr>
-//!         <tr>
-//!             <td><code>T</code></td>
-//!             <td><code>U</code></td>
-//!             <td><code>T</code></td>
-//!             <td><code>ffi-convert</code></td>
-//!         </tr>
-//!         <tr>
-//!             <td><code>const T*</code></td>
-//!             <td><code>Option&lt;U&gt;</code></td>
-//!             <td><code>*const T</code> (with <code>#[nullable]</code> field annotation)</td>
-//!             <td><code>ffi-convert</code></td>
-//!         </tr>
-//!         <tr>
-//!             <td><code>CArrayT</code></td>
-//!             <td><code>Vec&lt;U&gt;</code></td>
-//!             <td><a href="https://docs.rs/ffi-convert-extra-ctypes/latest/ffi_convert_extra_ctypes/struct.CArray.html"><code>CArray&lt;T&gt;</code></a></td>
-//!             <td><code>ffi-convert-extra-ctypes</code></td>
-//!         </tr>
-//!         <tr>
-//!             <td><code>CStringArray</code></td>
-//!             <td><code>Vec&lt;String&gt;</code></td>
-//!             <td><a href="https://docs.rs/ffi-convert-extra-ctypes/latest/ffi_convert_extra_ctypes/struct.CStringArray.html"><code>CStringArray</code></a></td>
-//!             <td><code>ffi-convert-extra-ctypes</code></td>
-//!         </tr>
-//!         <tr>
-//!             <td><code>CRangeT</code></td>
-//!             <td><code>Range&lt;U&gt;</code></td>
-//!             <td><a href="https://docs.rs/ffi-convert-extra-ctypes/latest/ffi_convert_extra_ctypes/struct.CRange.html"><code>CRange&lt;T&gt;</code></a></td>
-//!             <td><code>ffi-convert-extra-ctypes</code></td>
-//!         </tr>
-//!     </tbody>
-//! </table>
+//! | Trait                    | Direction            | Purpose                                                                       |
+//! |--------------------------|----------------------|-------------------------------------------------------------------------------|
+//! | [`CReprOf<U>`]           | Rust → C             | Consume an idiomatic Rust value and produce its C-compatible twin.            |
+//! | [`AsRust<U>`]            | C → Rust             | Produce an owned Rust value from a borrowed C-compatible view.                |
+//! | [`CDrop`]                | cleanup              | Free heap data owned by a C-compatible struct.                                |
+//! | [`RawPointerConverter`]  | pointer boxing       | Box a value into `*const T` / `*mut T` and take it back.                      |
+//! | [`RawBorrow`]            | pointer borrowing    | Borrow `&T` from a raw pointer without taking ownership.                      |
 //!
-
-//! ## The CReprOf trait
-
-//! The `CReprOf` trait allows to create a C-compatible representation of the reciprocal idiomatic Rust struct by consuming the latter.
-
-//! ```
-//! # use ffi_convert::{CReprOfError, CDrop};
-//! pub trait CReprOf<T>: Sized + CDrop {
-//!     fn c_repr_of(input: T) -> Result<Self, CReprOfError>;
-//! }
-//! ```
-
-//! This shows that the struct implementing it is a `repr(C)` compatible view of the parametrized
-//! type and can be created from an object of this type.
-
-//! ## The AsRust trait
-
-//! > When trying to convert a `repr(C)` struct that originated from C, the philosophy is to immediately convert
-//! > the struct to an **owned** idiomatic representation of the struct via the AsRust trait.
-
+//! All four conversion traits can be derived. The derives are re-exported from
+//! this crate; see [`ffi-convert-derive`](https://docs.rs/ffi-convert-derive)
+//! for the full list of supported attributes.
 //!
-//! The [`AsRust`] trait allows to create an idiomatic Rust struct from a C-compatible struct :
-
-//! ```
-//! # use ffi_convert::{AsRustError, CDrop};
-//! pub trait AsRust<T> {
-//!     fn as_rust(&self) -> Result<T, AsRustError>;
-//! }
-//! ```
-
-//! This shows that the struct implementing it is a `repr(C)` compatible view of the parametrized
-//! type and that an instance of the parametrized type can be created from this struct.
-
-//! ## The CDrop trait
-
-//! A Trait showing that the `repr(C)` compatible view implementing it can free up its part of memory that are not
-//! managed by Rust drop mechanism.
-
-//! ## The RawPointerConverter trait
-
-//! This trait completes the conversion traits toolbox provided by this crate : It expresses the
-//! conversion of a C-like struct to a raw pointer to this struct and conversely.
+//! # Deriving the traits
 //!
-//! This conversion trait comes in handy for C-like struct that have fields that points to other structs.
+//! The derives cover the common cases. They expect:
+//!
+//! - [`CReprOf`], [`AsRust`], and [`CDrop`] are derived **as a set** on the
+//!   same type, or all written by hand. The three impls share an ownership
+//!   contract (each pointer field is a `Box::into_raw`'d value, owned by
+//!   the C-compatible struct), and the derives rely on that contract. Mixing
+//!   a derived [`CDrop`] with a hand-written [`CReprOf`] that allocates
+//!   differently — or the other way around — will cause double frees, leaks,
+//!   or UB. If one of them needs custom behavior for a specific field,
+//!   reach for `#[c_repr_of_convert]` / `#[as_rust_extra_field]` instead of
+//!   writing one impl by hand.
+//! - `#[target_type(Path)]` on every struct or enum that derives [`CReprOf`]
+//!   or [`AsRust`], pointing at the idiomatic Rust type being mirrored.
+//!   [`CDrop`] and [`RawPointerConverter`] do not need it.
+//! - `#[nullable]` on every pointer field whose Rust counterpart is an
+//!   [`Option`]. The attribute is shared by all three derives: [`CReprOf`]
+//!   reads it to emit a null for `None`, [`AsRust`] to return `None` on a
+//!   null pointer, and [`CDrop`] to skip the free on null.
+//! - Any nested C-compatible struct used behind a pointer implements
+//!   [`RawPointerConverter`] (typically via `#[derive(RawPointerConverter)]`).
+//!
+//! The available attributes are:
+//!
+//! | Attribute                                | Applies to              | Used by                     | Purpose                                                                                                  |
+//! |------------------------------------------|-------------------------|-----------------------------|----------------------------------------------------------------------------------------------------------|
+//! | `#[target_type(Path)]`                   | struct / enum           | `CReprOf`, `AsRust`         | The idiomatic Rust type this C-compatible type mirrors.                                                  |
+//! | `#[nullable]`                            | pointer field           | `CReprOf`, `AsRust`, `CDrop`| Treat a `*const T` / `*mut T` as `Option<…>`. Required for every optional pointer field.                 |
+//! | `#[target_name(ident)]`                  | field                   | `CReprOf`, `AsRust`         | Name of the corresponding field on the Rust side when it differs from the C-side name.                   |
+//! | `#[c_repr_of_convert(expr)]`             | field                   | `CReprOf`, `AsRust`         | Override the `CReprOf` conversion with a custom expression. The owned `input: TargetType` is in scope. Excludes the field from `AsRust`. |
+//! | `#[as_rust_extra_field(name = expr)]`    | struct                  | `AsRust`                    | Initialise an extra field on the Rust side that has no C counterpart. Repeatable.                        |
+//! | `#[no_drop_impl]`                        | struct / enum           | `CDrop`                     | Only implement [`CDrop`]; skip the blanket [`Drop`] impl so you can write one manually.                  |
+//!
+//! Only unit enums (variants without fields) are supported by the derives for
+//! enums.
+//!
+//! # Caveats with derivation of `CReprOf`, `AsRust`, and `CDrop`
+//!
+//! The derives are intentionally conservative. The most common pitfalls are:
+//!
+//! ## Derive all three, or hand-write all three
+//!
+//! [`CReprOf`], [`AsRust`], and [`CDrop`] share an ownership contract: the
+//! derived [`CDrop`] assumes each pointer field was allocated by the derived
+//! [`CReprOf`] with `Box::into_raw`, and the derived [`AsRust`] reads
+//! pointer fields under the same assumption. Mixing a derived impl with a
+//! hand-written one is how you end up with double frees, leaks, or UB. If a
+//! single field needs custom handling, reach for `#[c_repr_of_convert]` or
+//! `#[as_rust_extra_field]` instead of writing a full impl manually.
+//!
+//! ## Ownership of pointer fields
+//!
+//! A derived [`CDrop`] implementation assumes every pointer field points to a
+//! [`Box`] allocated by this crate — typically because the struct was created
+//! by [`CReprOf::c_repr_of`]. If you build the C struct manually with pointers
+//! you do not own (for example pointers obtained from C, or stack addresses),
+//! letting it drop will trigger undefined behavior.
+//!
+//! Similarly, **do not share inner pointers** between two owning C structs.
+//! Both will try to free them.
+//!
+//! ## Pointers coming from C
+//!
+//! When a C-allocated struct is handed to Rust, convert it with
+//! [`AsRust::as_rust`] as soon as possible to obtain an owned Rust value, and
+//! leave the cleanup of the C-side memory to the C caller. Do **not** turn a
+//! borrow into a `Box` (for example via [`RawPointerConverter::from_raw_pointer`])
+//! unless Rust actually owns the allocation.
+//!
+//! ## `#[nullable]` and `Option` must agree
+//!
+//! If the Rust side is `Option<T>`, the C-side pointer field must carry
+//! `#[nullable]` — otherwise the derives won't compile, because the generated
+//! code tries to feed an `Option<T>` into `T::c_repr_of` (or write a `Some(…)`
+//! into a non-optional Rust field). The single `#[nullable]` attribute is
+//! shared by all three derives.
+//!
+//! ## Detecting C strings
+//!
+//! The derives treat a field as a C string only when its type spelling ends in
+//! `c_char` (for example `*const libc::c_char` or `*const c_char`). Aliases
+//! introduced via `type` declarations are not recognised — use the `c_char`
+//! spelling directly, or implement [`CReprOf`] / [`AsRust`] manually.
+//!
+//! ## Multi-level pointer fields
+//!
+//! Fields with more than one level of pointer indirection (such as
+//! `*const *const CFoo`) are not supported by the derives and must be
+//! implemented manually.
+//!
+//! ## Only unit enums can be derived
+//!
+//! `#[derive(CReprOf, AsRust, CDrop)]` on an enum requires every variant to be
+//! a unit variant. Enums carrying data need a manual implementation.
+//!
+//! ## `target_type` is required
+//!
+//! Both `CReprOf` and `AsRust` require a `#[target_type(...)]` attribute on
+//! the struct or enum. Without it the derive panics at compile time.
+//!
+//! ## `#[c_repr_of_convert]` disables `AsRust` for that field
+//!
+//! A field annotated with `#[c_repr_of_convert]` is skipped by the `AsRust`
+//! derive. If the Rust struct still has a matching field, provide it via
+//! `#[as_rust_extra_field(name = expr)]` on the struct; otherwise the derive
+//! will fail to compile.
+//!
+//! # Interop checklist
+//!
+//! When exposing a function through FFI, the typical flow is:
+//!
+//! 1. Receive a `*const CInput` from C, convert it to an owned `Input` with
+//!    [`AsRust`] (or use [`RawBorrow`] to inspect without taking ownership).
+//! 2. Run the Rust logic.
+//! 3. Build a `COutput` with [`CReprOf`] and return it to C via
+//!    [`RawPointerConverter::into_raw_pointer`].
+//! 4. Expose a `free`-style function that the C caller invokes when it is
+//!    done; that function should take back ownership with
+//!    [`RawPointerConverter::from_raw_pointer`] and let the value drop.
 
 pub use ffi_convert_derive::*;
 
