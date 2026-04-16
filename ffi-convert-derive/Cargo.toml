@@ -2,7 +2,7 @@
 name = "ffi-convert-derive"
 version = "0.8.0-pre"
 authors = ["Sonos"]
-edition = "2018"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 description = "Macros implementations of CReprOf, AsRust, CDrop traits from ffi-convert"
 repository = "https://github.com/sonos/ffi-convert-rs"

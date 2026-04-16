@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 
 use crate::utils::{
-    parse_enum_variants, parse_struct_fields, parse_target_type, Field, TypeArrayOrTypePath,
+    Field, TypeArrayOrTypePath, parse_enum_variants, parse_struct_fields, parse_target_type,
 };
 
 pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
@@ -29,7 +29,7 @@ fn impl_creprof_struct(
             let Field {
                 name: field_name,
                 target_name: target_field_name,
-                ref field_type,
+                field_type,
                 ..
             } = field;
 

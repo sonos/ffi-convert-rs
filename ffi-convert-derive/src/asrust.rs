@@ -4,7 +4,7 @@ use quote::quote;
 use syn::parse::{Parse, ParseBuffer};
 
 use crate::utils::{
-    parse_enum_variants, parse_struct_fields, parse_target_type, Field, TypeArrayOrTypePath,
+    Field, TypeArrayOrTypePath, parse_enum_variants, parse_struct_fields, parse_target_type,
 };
 
 pub fn impl_asrust_macro(input: &syn::DeriveInput) -> TokenStream {
@@ -32,7 +32,7 @@ fn impl_asrust_struct(
             let Field {
                 name: field_name,
                 target_name: target_field_name,
-                ref field_type,
+                field_type,
                 ..
             } = field;
 

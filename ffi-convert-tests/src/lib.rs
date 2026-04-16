@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use ffi_convert::*;
 use std::ops::Range;
 
@@ -157,7 +157,7 @@ pub enum CFlavor {
 /// # Safety
 ///
 /// `input` must be a valid pointer to a `CPancake`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn pancake_round_trip(input: *const CPancake) -> *const CPancake {
     let c_pancake = unsafe { &*input };
     let rust_pancake: Pancake = c_pancake.as_rust().expect("Failed to convert to Rust");
@@ -168,7 +168,7 @@ pub unsafe extern "C" fn pancake_round_trip(input: *const CPancake) -> *const CP
 /// # Safety
 ///
 /// `pancake` must be a pointer returned by `pancake_round_trip`. It must not be used after this call.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn pancake_free(pancake: *const CPancake) {
     unsafe { drop(Box::from_raw(pancake as *mut CPancake)) }
 }
