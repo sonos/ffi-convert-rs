@@ -16,11 +16,9 @@
 //! We want to be able to convert a **`Pizza`** Rust struct that has an idiomatic representation to a **`CPizza`** Rust struct that has a C-compatible representation in memory.
 //! We start by defining the fields of the `Pizza` struct :
 //! ```
-//! # struct Topping {};
 //! # struct Sauce {};
 //! pub struct Pizza {
 //!     pub name: String,
-//!     pub toppings: Vec<Topping>,
 //!     pub base: Option<Sauce>,
 //!     pub weight: f32,
 //! }
@@ -28,13 +26,10 @@
 //!
 //! We then create the C-compatible struct by [mapping](#types-representations-mapping) idiomatic Rust types to C-compatible types :
 //! ```
-//! # use ffi_convert::CArray;
-//! # struct CTopping {};
 //! # struct CSauce {};
 //! #[repr(C)]
 //! pub struct CPizza {
 //!     pub name: *const libc::c_char,
-//!     pub toppings: *const CArray<CTopping>,
 //!     pub base: *const CSauce,
 //!     pub weight: libc::c_float,
 //! }
@@ -56,16 +51,9 @@
 //!
 //! ```
 //! # use ffi_convert::{CReprOf, AsRust, CDrop, RawPointerConverter};
-//! # use ffi_convert::CArray;
 //! # use ffi_convert::RawBorrow;
-//! # struct Topping {};
-//! # #[derive(CReprOf, AsRust, CDrop)]
-//! # #[target_type(Topping)]
-//! # struct CTopping {};
-//! #
 //! # struct Pizza {
 //! #     name: String,
-//! #     toppings: Vec<Topping>,
 //! #     base: Option<Sauce>,
 //! #     weight: f32
 //! # };
@@ -81,7 +69,6 @@
 //! #[target_type(Pizza)]
 //! pub struct CPizza {
 //!     pub name: *const c_char,
-//!     pub toppings: *const CArray<CTopping>,
 //!     #[nullable]
 //!     pub base: *const CSauce,
 //!     pub weight: c_float,
@@ -103,12 +90,19 @@
 //! ## Types representations mapping
 //!
 //! `T : CReprOf<U> + AsRust<U>`
+//!
+//! The rows below marked as coming from the companion
+//! [`ffi-convert-extra-ctypes`](https://docs.rs/ffi-convert-extra-ctypes) crate are
+//! optional: they cover common container shapes but users are free to define their own
+//! C-compatible layouts and skip that crate entirely.
+//!
 //! <table>
 //!     <thead>
 //!         <tr>
 //!             <th>C type</th>
 //!             <th>Rust type</th>
 //!             <th>C-compatible Rust type</th>
+//!             <th>Provided by</th>
 //!         </tr>
 //!     </thead>
 //!     <tbody>
@@ -116,41 +110,49 @@
 //!             <td><code>const char*</code></td>
 //!             <td><code>String</code></td>
 //!             <td><code>*const libc::c_char</code></td>
+//!             <td><code>ffi-convert</code></td>
 //!         </tr>
 //!         <tr>
 //!             <td><code>const T*</code></td>
 //!             <td><code>U</code></td>
 //!             <td><code>*const T</code></td>
+//!             <td><code>ffi-convert</code></td>
 //!         </tr>
 //!         <tr>
 //!             <td><code>T*</code></td>
 //!             <td><code>U</code></td>
 //!             <td><code>*mut T</code></td>
+//!             <td><code>ffi-convert</code></td>
 //!         </tr>
 //!         <tr>
 //!             <td><code>T</code></td>
 //!             <td><code>U</code></td>
 //!             <td><code>T</code></td>
+//!             <td><code>ffi-convert</code></td>
 //!         </tr>
 //!         <tr>
 //!             <td><code>const T*</code></td>
 //!             <td><code>Option&lt;U&gt;</code></td>
 //!             <td><code>*const T</code> (with <code>#[nullable]</code> field annotation)</td>
+//!             <td><code>ffi-convert</code></td>
 //!         </tr>
 //!         <tr>
 //!             <td><code>CArrayT</code></td>
 //!             <td><code>Vec&lt;U&gt;</code></td>
-//!             <td><code>CArray&lt;T&gt;</code></td>
+//!             <td><a href="https://docs.rs/ffi-convert-extra-ctypes/latest/ffi_convert_extra_ctypes/struct.CArray.html"><code>CArray&lt;T&gt;</code></a></td>
+//!             <td><code>ffi-convert-extra-ctypes</code></td>
 //!         </tr>
 //!         <tr>
 //!             <td><code>CStringArray</code></td>
 //!             <td><code>Vec&lt;String&gt;</code></td>
-//!             <td><code>CStringArray</code></td>
+//!             <td><a href="https://docs.rs/ffi-convert-extra-ctypes/latest/ffi_convert_extra_ctypes/struct.CStringArray.html"><code>CStringArray</code></a></td>
+//!             <td><code>ffi-convert-extra-ctypes</code></td>
 //!         </tr>
 //!         <tr>
 //!             <td><code>CRangeT</code></td>
 //!             <td><code>Range&lt;U&gt;</code></td>
-//!             <td><code>CRange&lt;T&gt;</code></td>
+//!             <td><a href="https://docs.rs/ffi-convert-extra-ctypes/latest/ffi_convert_extra_ctypes/struct.CRange.html"><code>CRange&lt;T&gt;</code></a></td>
+//!             <td><code>ffi-convert-extra-ctypes</code></td>
 //!         </tr>
 //!     </tbody>
 //! </table>
@@ -203,7 +205,5 @@
 pub use ffi_convert_derive::*;
 
 mod conversions;
-mod types;
 
 pub use conversions::*;
-pub use types::*;
