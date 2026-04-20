@@ -13,9 +13,10 @@ use ffi_convert::{
 /// null `data_ptr` and `size == 0`.
 ///
 /// When `U` is a primitive numeric type (`u8`, `i8`, `u16`, `i16`, `u32`,
-/// `i32`, `f32`, or `f64`) the conversion takes a fast `memcpy`-style path,
-/// reusing the same buffer for both sides. Otherwise each element is
-/// converted individually through its `CReprOf` / `AsRust` implementation.
+/// `i32`, `f32`, or `f64`) the conversion takes a fast path: `c_repr_of`
+/// reuses the input `Vec`'s buffer directly, and `as_rust` does a bulk
+/// `ptr::copy` into a new `Vec`. Otherwise each element is converted
+/// individually through its `CReprOf` / `AsRust` implementation.
 ///
 /// `CArray` owns the backing buffer and frees it via its [`Drop`] impl (by
 /// way of [`CDrop`]). Do not reconstruct a `CArray` from a pointer you do not

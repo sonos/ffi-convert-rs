@@ -4,13 +4,12 @@ use ffi_convert::{
     AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError, RawBorrow, RawPointerConverter,
 };
 
-/// A `#[repr(C)]` mirror of `Vec<String>`: a contiguous array of
-/// nul-terminated C strings.
+/// A `#[repr(C)]` mirror of `Vec<String>`.
 ///
 /// Layout is a `(data, size)` pair where `data` is a pointer to a
-/// heap-allocated array of `*const c_char`. Each element is itself an owned
-/// C string allocated by the Rust side. The whole structure is freed via
-/// [`CDrop`](ffi_convert::CDrop) / [`Drop`].
+/// heap-allocated array of `*const c_char`, each pointing to its own
+/// nul-terminated C string allocated by the Rust side. The whole structure
+/// is freed via [`CDrop`](ffi_convert::CDrop) / [`Drop`].
 ///
 /// Strings containing interior NUL bytes cannot be represented and will
 /// cause [`CReprOf::c_repr_of`](ffi_convert::CReprOf::c_repr_of) to fail

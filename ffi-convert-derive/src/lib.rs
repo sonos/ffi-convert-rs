@@ -26,20 +26,15 @@ use rawpointerconverter::impl_rawpointerconverter_macro;
 /// Derive [`CReprOf<T>`](../ffi_convert/trait.CReprOf.html) for a struct or unit enum.
 ///
 /// Generates a consuming conversion from the idiomatic Rust type named in
-/// `#[target_type(...)]` to `Self`. String fields (`*const c_char`) are
-/// re-allocated as C strings, pointer fields are boxed via
+/// `#[target_type(...)]` to `Self`. C-string fields (pointers to `c_char`) are
+/// re-allocated as `CString`s, other pointer fields are boxed via
 /// [`RawPointerConverter::into_raw_pointer`](../ffi_convert/trait.RawPointerConverter.html),
-/// and scalar fields are passed through unchanged.
+/// and remaining fields go through their own `CReprOf` impl.
 ///
-/// `CReprOf` and [`CDrop`](../ffi_convert/trait.CDrop.html) share an
-/// ownership contract: each pointer field produced by `c_repr_of` is a
-/// `Box::into_raw`'d value that the derived `CDrop` reclaims with
-/// `Box::from_raw`. The recommended shape is
-/// `#[derive(CReprOf, AsRust, CDrop)]` as a set — deriving `CReprOf` while
-/// hand-writing `CDrop` (or the reverse) breaks the contract and causes
-/// double frees or leaks. For per-field customization, prefer
-/// `#[c_repr_of_convert]` / `#[as_rust_extra_field]` over hand-writing one
-/// of the impls.
+/// The recommended shape is `#[derive(CReprOf, AsRust, CDrop)]` as a set: the
+/// three derives share layout assumptions about pointer fields. For per-field
+/// customization, prefer `#[c_repr_of_convert]` / `#[as_rust_extra_field]`
+/// over hand-writing a whole impl.
 ///
 /// # Struct-level attributes
 ///
@@ -73,16 +68,14 @@ pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
 /// Derive [`AsRust<T>`](../ffi_convert/trait.AsRust.html) for a struct or unit enum.
 ///
 /// Generates a non-consuming conversion that returns a freshly-allocated value
-/// of the type named in `#[target_type(...)]`. C strings are decoded as UTF-8
-/// and copied; pointer fields are borrowed via
-/// [`RawBorrow`](../ffi_convert/trait.RawBorrow.html) and then recursively
-/// converted with `AsRust`.
+/// of the type named in `#[target_type(...)]`. C-string fields are decoded as
+/// UTF-8 and copied; other pointer fields are borrowed via
+/// [`RawBorrow`](../ffi_convert/trait.RawBorrow.html) and then converted with
+/// their own `AsRust` impl; remaining fields go through their own `AsRust`
+/// impl directly.
 ///
-/// The derived `AsRust` reads pointer fields under the same ownership
-/// contract that `CReprOf` / `CDrop` use (each pointer is a
-/// `Box::into_raw`'d value). If you derive any of the three, derive all of
-/// them; mixing a derived `AsRust` with a hand-written `CReprOf` that
-/// allocates pointer fields differently is undefined behavior.
+/// The derived `AsRust` reads pointer fields under the same layout assumptions
+/// as `CReprOf` / `CDrop`; deriving all three together keeps them in sync.
 ///
 /// # Struct-level attributes
 ///
@@ -123,36 +116,31 @@ pub fn asrust_derive(token_stream: TokenStream) -> TokenStream {
 /// Derive [`CDrop`](../ffi_convert/trait.CDrop.html) and (by default) [`Drop`]
 /// for a struct or unit enum.
 ///
-/// The generated `do_drop` takes back ownership of every owning pointer field
-/// with [`RawPointerConverter::from_raw_pointer`](../ffi_convert/trait.RawPointerConverter.html)
-/// and lets it drop. Scalar and array fields are left to Rust's regular drop
-/// glue.
+/// The generated `do_drop` releases every owning pointer field by calling
+/// [`RawPointerConverter::drop_raw_pointer`](../ffi_convert/trait.RawPointerConverter.html),
+/// which takes the value back from the raw pointer and lets it drop. Non-pointer
+/// fields are left to Rust's regular drop glue.
 ///
 /// Deriving [`CDrop`] assumes the struct owns its pointer fields — typically
-/// because it was built via `CReprOf::c_repr_of`. Dropping a value built from
-/// borrowed or shared pointers is undefined behavior.
+/// because it was built via `CReprOf::c_repr_of`. Derive `CReprOf`, `AsRust`,
+/// and `CDrop` together to keep their layout assumptions in sync.
 ///
-/// `CDrop` and [`CReprOf`](../ffi_convert/trait.CReprOf.html) must agree on
-/// how pointer fields are allocated: derive both together, or write both by
-/// hand. Mixing a derived `CDrop` with a hand-written `CReprOf` (or the
-/// reverse) breaks the contract and leads to double frees or leaks.
-///
-/// The default output is the intended shape: both impls should coexist, so
-/// that letting a value go out of scope actually frees the memory. A
-/// `CDrop` impl without a matching `Drop` silently leaks every pointer
-/// field.
+/// The default output also emits a `Drop` impl that calls `do_drop`, so that
+/// letting a value go out of scope releases its pointer fields. A `CDrop`
+/// impl without a matching `Drop` leaks every pointer field on scope exit
+/// (no one calls `do_drop`).
 ///
 /// # Struct-level attributes
 ///
 /// - `#[no_drop_impl]` — generate only the `CDrop` impl and skip the blanket
 ///   `Drop` impl. Use this when you need a manual `Drop`; that manual `Drop`
-///   must call `do_drop`, otherwise the struct leaks.
+///   should call `do_drop`, otherwise the pointer fields leak.
 ///
 /// # Field-level attributes
 ///
-/// - `#[nullable]` — skip the free when the pointer is null. This is the
-///   same attribute that `CReprOf` and `AsRust` read on the field; annotate
-///   the field once and all three derives agree.
+/// - `#[nullable]` — skip the free when the pointer is null. This is the same
+///   attribute that `CReprOf` and `AsRust` read on the field; annotate the
+///   field once and all three derives stay in sync.
 #[proc_macro_derive(CDrop, attributes(no_drop_impl, nullable))]
 pub fn cdrop_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
