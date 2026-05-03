@@ -4,7 +4,8 @@ use ffi_convert::{
     AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError, RawBorrow, RawPointerConverter,
 };
 
-/// A `#[repr(C)]` mirror of `Vec<String>`.
+/// A `#[repr(C)]` mirror of `Vec<String>` with impls of [`CReprOf`], [`CDrop`]
+/// and [`AsRust`].
 ///
 /// Layout is a `(data, size)` pair where `data` is a pointer to a
 /// heap-allocated array of `*const c_char`, each pointing to its own

@@ -7,7 +7,8 @@ use ffi_convert::{
     take_back_from_raw_pointer, take_back_from_raw_pointer_mut,
 };
 
-/// A `#[repr(C)]` mirror of [`Vec<U>`] where `T: CReprOf<U> + AsRust<U>`.
+/// A `#[repr(C)]` mirror of [`Vec<U>`] with impls of [`CReprOf`], [`CDrop`]
+/// and [`AsRust`].
 ///
 /// Layout is a `(data_ptr, size)` pair. An empty array is represented with a
 /// null `data_ptr` and `size == 0`.

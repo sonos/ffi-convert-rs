@@ -2,8 +2,8 @@ use std::ops::Range;
 
 use ffi_convert::{AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError};
 
-/// A `#[repr(C)]` mirror of [`std::ops::Range<U>`] where
-/// `T: CReprOf<U> + AsRust<U>`.
+/// A `#[repr(C)]` mirror of [`std::ops::Range<U>`] with impls of [`CReprOf`],
+/// [`CDrop`] and [`AsRust`].
 ///
 /// Contains a plain `(start, end)` pair — no allocation involved. Use it as
 /// a field type when a struct needs to expose a range through FFI.
