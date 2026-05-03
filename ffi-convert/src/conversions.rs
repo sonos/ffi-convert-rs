@@ -4,76 +4,6 @@ use std::str::Utf8Error;
 
 use thiserror::Error;
 
-macro_rules! impl_c_repr_of_for {
-    ($typ:ty) => {
-        impl CReprOf<$typ> for $typ {
-            fn c_repr_of(input: $typ) -> Result<$typ, CReprOfError> {
-                Ok(input)
-            }
-        }
-    };
-
-    ($from_typ:ty, $to_typ:ty) => {
-        impl CReprOf<$from_typ> for $to_typ {
-            fn c_repr_of(input: $from_typ) -> Result<$to_typ, CReprOfError> {
-                Ok(input as $to_typ)
-            }
-        }
-    };
-}
-
-/// implements a noop implementation of the CDrop trait for a given type.
-macro_rules! impl_c_drop_for {
-    ($typ:ty) => {
-        impl CDrop for $typ {
-            fn do_drop(&mut self) -> Result<(), CDropError> {
-                Ok(())
-            }
-        }
-    };
-}
-
-macro_rules! impl_as_rust_for {
-    ($typ:ty) => {
-        impl AsRust<$typ> for $typ {
-            fn as_rust(&self) -> Result<$typ, AsRustError> {
-                Ok(*self)
-            }
-        }
-    };
-
-    ($from_typ:ty, $to_typ:ty) => {
-        impl AsRust<$to_typ> for $from_typ {
-            fn as_rust(&self) -> Result<$to_typ, AsRustError> {
-                Ok(*self as $to_typ)
-            }
-        }
-    };
-}
-
-macro_rules! impl_rawpointerconverter_for {
-    ($typ:ty) => {
-        impl RawPointerConverter<$typ> for $typ {
-            fn into_raw_pointer(self) -> *const $typ {
-                convert_into_raw_pointer(self)
-            }
-            fn into_raw_pointer_mut(self) -> *mut $typ {
-                convert_into_raw_pointer_mut(self)
-            }
-            unsafe fn from_raw_pointer(
-                input: *const $typ,
-            ) -> Result<Self, UnexpectedNullPointerError> {
-                unsafe { take_back_from_raw_pointer(input) }
-            }
-            unsafe fn from_raw_pointer_mut(
-                input: *mut $typ,
-            ) -> Result<Self, UnexpectedNullPointerError> {
-                unsafe { take_back_from_raw_pointer_mut(input) }
-            }
-        }
-    };
-}
-
 /// Error returned by [`CReprOf::c_repr_of`].
 #[derive(Error, Debug)]
 pub enum CReprOfError {
@@ -92,9 +22,9 @@ pub enum CReprOfError {
 /// Implementing `CReprOf<U>` for `T` states that `T` is a C-compatible layout
 /// of the Rust value `U` and that a `T` can be built from a `U`. The resulting
 /// `T` owns any heap memory it allocates, and that memory is reclaimed by the
-/// corresponding [`CDrop`] implementation. The recommended way to provide both
-/// is `#[derive(CReprOf, AsRust, CDrop)]` — see
-/// [Deriving the traits](crate#deriving-the-traits).
+/// corresponding [`CDrop`] implementation.
+///
+/// see  [Deriving the traits](crate#deriving-the-traits).
 pub trait CReprOf<T>: Sized + CDrop {
     /// Consume `input` and return its C-compatible representation.
     fn c_repr_of(input: T) -> Result<Self, CReprOfError>;
@@ -115,16 +45,14 @@ pub enum CDropError {
 /// fields (typically data that was moved into a `Box` and leaked via
 /// [`Box::into_raw`]).
 ///
-/// By default [`#[derive(CDrop)]`](ffi_convert_derive::CDrop) emits both a
+/// By default, [`#[derive(CDrop)]`](ffi_convert_derive::CDrop) emits both a
 /// [`CDrop`] impl and a matching [`Drop`] impl that calls
 /// [`do_drop`](CDrop::do_drop), so dropping the value through Rust's normal
 /// path releases its pointer fields. `#[no_drop_impl]` suppresses only the
-/// [`Drop`] impl; in that case a hand-written [`Drop`] must call `do_drop`
+/// [`Drop`] impl; in that case a handwritten [`Drop`] must call `do_drop`
 /// itself, otherwise the pointer fields are leaked.
 ///
-/// The recommended way to provide `CDrop`, [`CReprOf`], and [`AsRust`] is
-/// to derive them together — see
-/// [Deriving the traits](crate#deriving-the-traits).
+/// see [Deriving the traits](crate#deriving-the-traits).
 pub trait CDrop {
     /// Release any Rust-owned memory referenced by `self`. The derived
     /// [`Drop`] impl calls this and discards the result, so errors raised
@@ -152,8 +80,7 @@ pub enum AsRustError {
 /// `AsRust<U>` takes `&self` and returns a freshly-allocated `U`, copying data
 /// out of any pointer field by borrowing through [`RawBorrow`]. The original
 /// C-compatible value is left untouched and its allocations are not freed;
-/// releasing them is the caller's responsibility (typically via [`CDrop`] on
-/// the C side).
+/// releasing them is the caller's responsibility.
 ///
 /// This is the recommended entry point for values handed to Rust by C — see
 /// the crate-level [Philosophy](crate#philosophy).
@@ -358,19 +285,47 @@ impl RawBorrow<libc::c_char> for std::ffi::CStr {
     }
 }
 
-impl_c_drop_for!(usize);
-impl_c_drop_for!(i8);
-impl_c_drop_for!(u8);
-impl_c_drop_for!(i16);
-impl_c_drop_for!(u16);
-impl_c_drop_for!(i32);
-impl_c_drop_for!(u32);
-impl_c_drop_for!(i64);
-impl_c_drop_for!(u64);
-impl_c_drop_for!(f32);
-impl_c_drop_for!(f64);
-impl_c_drop_for!(bool);
-impl_c_drop_for!(std::ffi::CString);
+macro_rules! impl_noop_c_drop_for {
+    ($typ:ty) => {
+        impl CDrop for $typ {
+            fn do_drop(&mut self) -> Result<(), CDropError> {
+                Ok(())
+            }
+        }
+    };
+}
+
+impl_noop_c_drop_for!(usize);
+impl_noop_c_drop_for!(i8);
+impl_noop_c_drop_for!(u8);
+impl_noop_c_drop_for!(i16);
+impl_noop_c_drop_for!(u16);
+impl_noop_c_drop_for!(i32);
+impl_noop_c_drop_for!(u32);
+impl_noop_c_drop_for!(i64);
+impl_noop_c_drop_for!(u64);
+impl_noop_c_drop_for!(f32);
+impl_noop_c_drop_for!(f64);
+impl_noop_c_drop_for!(bool);
+impl_noop_c_drop_for!(std::ffi::CString);
+
+macro_rules! impl_c_repr_of_for {
+    ($typ:ty) => {
+        impl CReprOf<$typ> for $typ {
+            fn c_repr_of(input: $typ) -> Result<$typ, CReprOfError> {
+                Ok(input)
+            }
+        }
+    };
+
+    ($from_typ:ty, $to_typ:ty) => {
+        impl CReprOf<$from_typ> for $to_typ {
+            fn c_repr_of(input: $from_typ) -> Result<$to_typ, CReprOfError> {
+                Ok(input as $to_typ)
+            }
+        }
+    };
+}
 
 impl_c_repr_of_for!(usize);
 impl_c_repr_of_for!(i8);
@@ -393,6 +348,24 @@ impl CReprOf<String> for std::ffi::CString {
     }
 }
 
+macro_rules! impl_as_rust_for {
+    ($typ:ty) => {
+        impl AsRust<$typ> for $typ {
+            fn as_rust(&self) -> Result<$typ, AsRustError> {
+                Ok(*self)
+            }
+        }
+    };
+
+    ($from_typ:ty, $to_typ:ty) => {
+        impl AsRust<$to_typ> for $from_typ {
+            fn as_rust(&self) -> Result<$to_typ, AsRustError> {
+                Ok(*self as $to_typ)
+            }
+        }
+    };
+}
+
 impl_as_rust_for!(usize);
 impl_as_rust_for!(i8);
 impl_as_rust_for!(u8);
@@ -412,6 +385,29 @@ impl AsRust<String> for std::ffi::CStr {
     fn as_rust(&self) -> Result<String, AsRustError> {
         self.to_str().map(|s| s.to_owned()).map_err(|e| e.into())
     }
+}
+
+macro_rules! impl_rawpointerconverter_for {
+    ($typ:ty) => {
+        impl RawPointerConverter<$typ> for $typ {
+            fn into_raw_pointer(self) -> *const $typ {
+                convert_into_raw_pointer(self)
+            }
+            fn into_raw_pointer_mut(self) -> *mut $typ {
+                convert_into_raw_pointer_mut(self)
+            }
+            unsafe fn from_raw_pointer(
+                input: *const $typ,
+            ) -> Result<Self, UnexpectedNullPointerError> {
+                unsafe { take_back_from_raw_pointer(input) }
+            }
+            unsafe fn from_raw_pointer_mut(
+                input: *mut $typ,
+            ) -> Result<Self, UnexpectedNullPointerError> {
+                unsafe { take_back_from_raw_pointer_mut(input) }
+            }
+        }
+    };
 }
 
 impl_rawpointerconverter_for!(usize);

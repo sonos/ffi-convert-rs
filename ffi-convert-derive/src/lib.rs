@@ -31,11 +31,6 @@ use rawpointerconverter::impl_rawpointerconverter_macro;
 /// [`RawPointerConverter::into_raw_pointer`](../ffi_convert/trait.RawPointerConverter.html),
 /// and remaining fields go through their own `CReprOf` impl.
 ///
-/// The recommended shape is `#[derive(CReprOf, AsRust, CDrop)]` as a set: the
-/// three derives share layout assumptions about pointer fields. For per-field
-/// customization, prefer `#[c_repr_of_convert]` / `#[as_rust_extra_field]`
-/// over hand-writing a whole impl.
-///
 /// # Struct-level attributes
 ///
 /// - `#[target_type(Path)]` — **required**. The idiomatic Rust type this
@@ -121,14 +116,13 @@ pub fn asrust_derive(token_stream: TokenStream) -> TokenStream {
 /// which takes the value back from the raw pointer and lets it drop. Non-pointer
 /// fields are left to Rust's regular drop glue.
 ///
-/// Deriving [`CDrop`] assumes the struct owns its pointer fields — typically
-/// because it was built via `CReprOf::c_repr_of`. Derive `CReprOf`, `AsRust`,
-/// and `CDrop` together to keep their layout assumptions in sync.
+/// Deriving [`CDrop`] assumes the struct owns its pointer fields and was initialized
+/// via `CReprOf::c_repr_of`. Derive `CReprOf` and `CDrop`  together to keep their
+/// assumptions in sync.
 ///
 /// The default output also emits a `Drop` impl that calls `do_drop`, so that
 /// letting a value go out of scope releases its pointer fields. A `CDrop`
-/// impl without a matching `Drop` leaks every pointer field on scope exit
-/// (no one calls `do_drop`).
+/// impl without a matching `Drop` leaks every pointer field on scope exit.
 ///
 /// # Struct-level attributes
 ///
