@@ -4,22 +4,42 @@ use ffi_convert::{
     AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError, RawBorrow, RawPointerConverter,
 };
 
-/// A utility type to represent arrays of string
+/// A `#[repr(C)]` mirror of `Vec<String>` with impls of [`CReprOf`], [`CDrop`]
+/// and [`AsRust`].
+///
+/// Layout is a `(data, size)` pair where `data` is a pointer to a
+/// heap-allocated array of `*const c_char`, each pointing to its own
+/// nul-terminated C string allocated by the Rust side. The whole structure
+/// is freed via [`CDrop`](ffi_convert::CDrop) / [`Drop`].
+///
+/// Strings containing interior NUL bytes cannot be represented and will
+/// cause [`CReprOf::c_repr_of`](ffi_convert::CReprOf::c_repr_of) to fail
+/// with [`CReprOfError::StringContainsNullBit`](ffi_convert::CReprOfError).
+///
 /// # Example
 ///
 /// ```
-/// use ffi_convert::CReprOf;
+/// use ffi_convert::{AsRust, CReprOf};
 /// use ffi_convert_extra_ctypes::CStringArray;
-/// let pizza_names = vec!["Diavola".to_string(), "Margarita".to_string(), "Regina".to_string()];
-/// let c_pizza_names = CStringArray::c_repr_of(pizza_names).expect("could not convert !");
 ///
+/// let pizza_names = vec![
+///     "Diavola".to_string(),
+///     "Margarita".to_string(),
+///     "Regina".to_string(),
+/// ];
+/// let c_pizza_names = CStringArray::c_repr_of(pizza_names.clone()).unwrap();
+/// assert_eq!(c_pizza_names.size, 3);
+///
+/// // Deep-copy back into owned Rust strings.
+/// let round_tripped: Vec<String> = c_pizza_names.as_rust().unwrap();
+/// assert_eq!(round_tripped, pizza_names);
 /// ```
 #[repr(C)]
 #[derive(Debug, RawPointerConverter)]
 pub struct CStringArray {
-    /// Pointer to the first element of the array
+    /// Pointer to the first `*const c_char` element of the array.
     pub data: *const *const libc::c_char,
-    /// Number of elements in the array
+    /// Number of elements in the array.
     pub size: usize,
 }
 

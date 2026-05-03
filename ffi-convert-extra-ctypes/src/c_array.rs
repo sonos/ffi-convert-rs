@@ -7,13 +7,26 @@ use ffi_convert::{
     take_back_from_raw_pointer, take_back_from_raw_pointer_mut,
 };
 
-/// A utility type to represent arrays of the parametrized type.
-/// Note that the parametrized type should have a C-compatible representation.
+/// A `#[repr(C)]` mirror of [`Vec<U>`] with impls of [`CReprOf`], [`CDrop`]
+/// and [`AsRust`].
+///
+/// Layout is a `(data_ptr, size)` pair. An empty array is represented with a
+/// null `data_ptr` and `size == 0`.
+///
+/// When `U` is a primitive numeric type (`u8`, `i8`, `u16`, `i16`, `u32`,
+/// `i32`, `f32`, or `f64`) the conversion takes a fast path: `c_repr_of`
+/// reuses the input `Vec`'s buffer directly, and `as_rust` does a bulk
+/// `ptr::copy` into a new `Vec`. Otherwise each element is converted
+/// individually through its `CReprOf` / `AsRust` implementation.
+///
+/// `CArray` owns the backing buffer and frees it via its [`Drop`] impl (by
+/// way of [`CDrop`]). Do not reconstruct a `CArray` from a pointer you do not
+/// own.
 ///
 /// # Example
 ///
 /// ```
-/// use ffi_convert::{CReprOf, AsRust, CDrop};
+/// use ffi_convert::{AsRust, CDrop, CReprOf};
 /// use ffi_convert_extra_ctypes::CArray;
 /// use libc::c_char;
 ///
@@ -21,25 +34,31 @@ use ffi_convert::{
 ///     pub ingredient: String,
 /// }
 ///
-/// #[derive(CDrop, CReprOf, AsRust)]
+/// #[derive(CReprOf, AsRust, CDrop)]
 /// #[target_type(PizzaTopping)]
 /// pub struct CPizzaTopping {
-///     pub ingredient: *const c_char
+///     pub ingredient: *const c_char,
 /// }
 ///
 /// let toppings = vec![
-///         PizzaTopping { ingredient: "Cheese".to_string() },
-///         PizzaTopping { ingredient: "Ham".to_string() } ];
+///     PizzaTopping { ingredient: "Cheese".into() },
+///     PizzaTopping { ingredient: "Ham".into() },
+/// ];
 ///
-/// let ctoppings = CArray::<CPizzaTopping>::c_repr_of(toppings);
+/// // Rust -> C (the `CArray` now owns the C strings it allocated).
+/// let c_toppings = CArray::<CPizzaTopping>::c_repr_of(toppings).unwrap();
+/// assert_eq!(c_toppings.size, 2);
 ///
+/// // C -> Rust (deep copy; `c_toppings` stays valid).
+/// let round_tripped: Vec<PizzaTopping> = c_toppings.as_rust().unwrap();
+/// assert_eq!(round_tripped[0].ingredient, "Cheese");
 /// ```
 #[repr(C)]
 #[derive(Debug)]
 pub struct CArray<T> {
-    /// Pointer to the first element of the array
+    /// Pointer to the first element, or null when `size == 0`.
     pub data_ptr: *const T,
-    /// Number of elements in the array
+    /// Number of elements in the array.
     pub size: usize,
 }
 
