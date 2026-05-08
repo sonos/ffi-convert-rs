@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::parse::{Parse, ParseBuffer};
 
 use crate::utils::{
@@ -35,6 +35,7 @@ fn impl_asrust_struct(
                 field_type,
                 ..
             } = field;
+            let field_span = field_name.span();
 
             if field.levels_of_indirection > 1 && !field.is_nullable {
                 panic!(
@@ -46,34 +47,29 @@ fn impl_asrust_struct(
             }
 
             let mut conversion = if field.is_string {
-                quote!( {
+                quote_spanned!(field_span => {
                     use ffi_convert::RawBorrow;
                     unsafe { std::ffi::CStr::raw_borrow(self.#field_name) }?.as_rust()?
                 })
             } else if field.is_pointer {
                 match field_type {
                     TypeArrayOrTypePath::TypeArray(type_array) => {
-                        quote!( {
-                        let ref_to_array = unsafe { <#type_array>::raw_borrow(self.#field_name)? };
-                        let converted_array = ref_to_struct.as_rust()?;
-                        converted_array
-                    })
+                        quote_spanned!(field_span =>
+                            unsafe { <#type_array>::raw_borrow(self.#field_name)? }.as_rust()?
+                        )
                     }
                     TypeArrayOrTypePath::TypePath(type_path) => {
-                        quote!( {
-                        let ref_to_struct = unsafe { #type_path::raw_borrow(self.#field_name)? };
-                        let converted_struct = ref_to_struct.as_rust()?;
-                        converted_struct
-                    })
+                        quote_spanned!(field_span =>
+                            unsafe { #type_path::raw_borrow(self.#field_name)? }.as_rust()?
+                        )
                     }
                 }
-
             } else {
-                quote!(self.#field_name.as_rust()?)
+                quote_spanned!(field_span => self.#field_name.as_rust()?)
             };
 
             conversion = if field.is_nullable {
-                quote!(
+                quote_spanned!(field_span =>
                     #target_field_name: if !self.#field_name.is_null() {
                         Some(#conversion)
                     } else {
@@ -81,7 +77,7 @@ fn impl_asrust_struct(
                     }
                 )
             } else {
-                quote!(
+                quote_spanned!(field_span =>
                     #target_field_name: #conversion
                 )
             };

@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 
-use quote::quote;
+use quote::{quote, quote_spanned};
 
 use crate::utils::{
     Field, TypeArrayOrTypePath, parse_enum_variants, parse_struct_fields, parse_target_type,
@@ -24,7 +24,7 @@ fn impl_creprof_struct(
 ) -> TokenStream {
     let fields = parse_struct_fields(data);
     let c_repr_of_fields = fields
-        .iter()
+        .into_iter()
         .map(|field| {
             let Field {
                 name: field_name,
@@ -32,28 +32,29 @@ fn impl_creprof_struct(
                 field_type,
                 ..
             } = field;
+            let field_span = field_name.span();
 
             let mut conversion = if field.is_string {
-                quote!(std::ffi::CString::c_repr_of(field)?)
+                quote_spanned!(field_span => std::ffi::CString::c_repr_of(field)?)
             } else {
                 match field_type {
                     TypeArrayOrTypePath::TypeArray(type_array) => {
-                        quote!(<#type_array>::c_repr_of(field)?)
+                        quote_spanned!(field_span => <#type_array>::c_repr_of(field)?)
                     }
                     TypeArrayOrTypePath::TypePath(type_path) => {
-                        quote!(#type_path::c_repr_of(field)?)
+                        quote_spanned!(field_span => #type_path::c_repr_of(field)?)
                     }
                 }
             };
 
             if field.is_pointer {
                 for _ in 0..field.levels_of_indirection {
-                    conversion = quote!(#conversion.into_raw_pointer())
+                    conversion = quote_spanned!(field_span => #conversion.into_raw_pointer())
                 }
             }
 
             conversion = if field.is_nullable {
-                quote!(
+                quote_spanned!(field_span =>
                     #field_name: if let Some(field) = input.#target_field_name {
                         #conversion
                     } else {
@@ -61,10 +62,10 @@ fn impl_creprof_struct(
                     }
                 )
             } else {
-                quote!(#field_name: { let field = input.#target_field_name ; #conversion })
+                quote_spanned!(field_span => #field_name: { let field = input.#target_field_name ; #conversion })
             };
             if let Some(convert) = &field.c_repr_of_convert {
-                quote!(#field_name: #convert)
+                quote_spanned!(field_span => #field_name: #convert)
             } else {
                 conversion
             }
