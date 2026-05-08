@@ -54,18 +54,14 @@ fn impl_asrust_struct(
             } else if field.is_pointer {
                 match field_type {
                     TypeArrayOrTypePath::TypeArray(type_array) => {
-                        quote_spanned!(field_span => {
-                        let ref_to_array = unsafe { <#type_array>::raw_borrow(self.#field_name)? };
-                        let converted_array = ref_to_struct.as_rust()?;
-                        converted_array
-                    })
+                        quote_spanned!(field_span =>
+                            unsafe { <#type_array>::raw_borrow(self.#field_name)? }.as_rust()?
+                        )
                     }
                     TypeArrayOrTypePath::TypePath(type_path) => {
-                        quote_spanned!(field_span => {
-                        let ref_to_struct = unsafe { #type_path::raw_borrow(self.#field_name)? };
-                        let converted_struct = ref_to_struct.as_rust()?;
-                        converted_struct
-                    })
+                        quote_spanned!(field_span =>
+                            unsafe { #type_path::raw_borrow(self.#field_name)? }.as_rust()?
+                        )
                     }
                 }
 
