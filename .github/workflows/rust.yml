@@ -24,7 +24,9 @@ jobs:
     - name: Install 1.88 toolchain (MSRV)
       run: rustup toolchain install 1.88.0
     - name: Run tests on MSRV
-      run: cargo test --verbose
+      run: cargo +1.88 test --verbose
+    - name: Clippy on MSRV
+      run: cargo +1.88 clippy -- -D clippy::all
     - name: Install nightly toolchain
       run: rustup toolchain install nightly --component rust-src
     - name: Run tests under ASan
