@@ -64,7 +64,6 @@ fn impl_asrust_struct(
                         )
                     }
                 }
-
             } else {
                 quote_spanned!(field_span => self.#field_name.as_rust()?)
             };
