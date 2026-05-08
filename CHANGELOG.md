@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- compilation errors in derived code are now linked to the field that provoked them rather than the whole struct
 
 ### Changed
 - move to edition 2024, MSRV 1.88
