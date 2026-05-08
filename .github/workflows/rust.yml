@@ -22,7 +22,7 @@ jobs:
     - name: Clippy
       run: cargo clippy -- -D clippy::all
     - name: Install 1.88 toolchain (MSRV)
-      run: rustup toolchain install 1.88.0
+      run: rustup toolchain install 1.88 --component clippy
     - name: Run tests on MSRV
       run: cargo +1.88 test --verbose
     - name: Clippy on MSRV
