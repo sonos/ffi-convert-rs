@@ -51,7 +51,7 @@
 //!
 //! ```
 //! use ffi_convert::{AsRust, CDrop, CReprOf, RawBorrow, RawPointerConverter};
-//! use libc::{c_char, c_float};
+//! use std::ffi::{c_char, c_float};
 //!
 //! pub struct Sauce {
 //!     pub spiciness: f32,
@@ -97,7 +97,7 @@
 //!
 //! ```
 //! # use ffi_convert::{AsRust, CDrop, CReprOf, RawBorrow, RawPointerConverter};
-//! # use libc::{c_char, c_float};
+//! # use std::ffi::{c_char, c_float};
 //! # pub struct Sauce { pub spiciness: f32 }
 //! # #[repr(C)]
 //! # #[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
@@ -160,7 +160,7 @@
 //! | C type                 | Rust type (`U`)   | C-compatible Rust type (`T`)                                                                                        | Provided by                  |
 //! |------------------------|-------------------|---------------------------------------------------------------------------------------------------------------------|------------------------------|
 //! | any scalar (`int`, …)  | same scalar       | same scalar                                                                                                         | `ffi-convert`                |
-//! | `const char*`          | `String`          | `*const libc::c_char`                                                                                               | `ffi-convert`                |
+//! | `const char*`          | `String`          | `*const std::ffi::c_char`                                                                                           | `ffi-convert`                |
 //! | `const T*`             | `U`               | `*const T`                                                                                                          | `ffi-convert`                |
 //! | `T*`                   | `U`               | `*mut T`                                                                                                            | `ffi-convert`                |
 //! | `const T*` (nullable)  | `Option<U>`       | `*const T` with `#[nullable]`                                                                                       | `ffi-convert`                |
@@ -225,8 +225,8 @@
 //! ## Constraints
 //!
 //! - **C strings**: a field is recognized as a C string only when the
-//!   pointee's type name is literally `c_char` — `*const libc::c_char`,
-//!   `*mut libc::c_char`, and `*const c_char` all qualify. A `type` alias
+//!   pointee's type name is literally `c_char` — `*const std::ffi::c_char`,
+//!   `*mut std::ffi::c_char`, and `*const c_char` all qualify. A `type` alias
 //!   for `c_char` is not recognized.
 //! - **Multi-level pointer fields** (such as `*const *const CFoo`) are
 //!   accepted by the [`AsRust`] derive only when the field is also

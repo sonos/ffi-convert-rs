@@ -11,4 +11,3 @@ keywords = ["ffi"]
 
 [dependencies]
 ffi-convert = { path = "../ffi-convert" }
-libc = "0.2"

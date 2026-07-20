@@ -184,7 +184,7 @@ pub unsafe fn take_back_from_raw_pointer_mut<T>(
 /// ownership of the allocation — see the crate-level
 /// [Philosophy](crate#philosophy). A blanket impl `impl<T> RawBorrow<T> for T`
 /// covers every type; [`std::ffi::CStr`] additionally implements
-/// `RawBorrow<libc::c_char>`.
+/// `RawBorrow<std::ffi::c_char>`.
 pub trait RawBorrow<T> {
     /// Borrow the value behind `input`, or return
     /// [`UnexpectedNullPointerError`] if it is null.
@@ -221,61 +221,61 @@ impl<T> RawBorrowMut<T> for T {
     }
 }
 
-impl RawPointerConverter<libc::c_void> for std::ffi::CString {
-    fn into_raw_pointer(self) -> *const libc::c_void {
+impl RawPointerConverter<std::ffi::c_void> for std::ffi::CString {
+    fn into_raw_pointer(self) -> *const std::ffi::c_void {
         self.into_raw() as _
     }
 
-    fn into_raw_pointer_mut(self) -> *mut libc::c_void {
+    fn into_raw_pointer_mut(self) -> *mut std::ffi::c_void {
         self.into_raw() as _
     }
 
     unsafe fn from_raw_pointer(
-        input: *const libc::c_void,
+        input: *const std::ffi::c_void,
     ) -> Result<Self, UnexpectedNullPointerError> {
-        unsafe { Self::from_raw_pointer_mut(input as *mut libc::c_void) }
+        unsafe { Self::from_raw_pointer_mut(input as *mut std::ffi::c_void) }
     }
 
     unsafe fn from_raw_pointer_mut(
-        input: *mut libc::c_void,
+        input: *mut std::ffi::c_void,
     ) -> Result<Self, UnexpectedNullPointerError> {
         if input.is_null() {
             Err(UnexpectedNullPointerError)
         } else {
-            Ok(unsafe { std::ffi::CString::from_raw(input as *mut libc::c_char) })
+            Ok(unsafe { std::ffi::CString::from_raw(input as *mut std::ffi::c_char) })
         }
     }
 }
 
-impl RawPointerConverter<libc::c_char> for std::ffi::CString {
-    fn into_raw_pointer(self) -> *const libc::c_char {
+impl RawPointerConverter<std::ffi::c_char> for std::ffi::CString {
+    fn into_raw_pointer(self) -> *const std::ffi::c_char {
         self.into_raw() as _
     }
 
-    fn into_raw_pointer_mut(self) -> *mut libc::c_char {
+    fn into_raw_pointer_mut(self) -> *mut std::ffi::c_char {
         self.into_raw()
     }
 
     unsafe fn from_raw_pointer(
-        input: *const libc::c_char,
+        input: *const std::ffi::c_char,
     ) -> Result<Self, UnexpectedNullPointerError> {
-        unsafe { Self::from_raw_pointer_mut(input as *mut libc::c_char) }
+        unsafe { Self::from_raw_pointer_mut(input as *mut std::ffi::c_char) }
     }
 
     unsafe fn from_raw_pointer_mut(
-        input: *mut libc::c_char,
+        input: *mut std::ffi::c_char,
     ) -> Result<Self, UnexpectedNullPointerError> {
         if input.is_null() {
             Err(UnexpectedNullPointerError)
         } else {
-            Ok(unsafe { std::ffi::CString::from_raw(input as *mut libc::c_char) })
+            Ok(unsafe { std::ffi::CString::from_raw(input as *mut std::ffi::c_char) })
         }
     }
 }
 
-impl RawBorrow<libc::c_char> for std::ffi::CStr {
+impl RawBorrow<std::ffi::c_char> for std::ffi::CStr {
     unsafe fn raw_borrow<'a>(
-        input: *const libc::c_char,
+        input: *const std::ffi::c_char,
     ) -> Result<&'a Self, UnexpectedNullPointerError> {
         if input.is_null() {
             Err(UnexpectedNullPointerError)

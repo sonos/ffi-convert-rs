@@ -38,7 +38,7 @@ use ffi_convert::{
 #[derive(Debug, RawPointerConverter)]
 pub struct CStringArray {
     /// Pointer to the first `*const c_char` element of the array.
-    pub data: *const *const libc::c_char,
+    pub data: *const *const std::ffi::c_char,
     /// Number of elements in the array.
     pub size: usize,
 }
@@ -50,7 +50,7 @@ impl AsRust<Vec<String>> for CStringArray {
         let mut result = vec![];
 
         let strings = unsafe {
-            std::slice::from_raw_parts_mut(self.data as *mut *mut libc::c_char, self.size)
+            std::slice::from_raw_parts_mut(self.data as *mut *mut std::ffi::c_char, self.size)
         };
 
         for s in strings {
@@ -68,12 +68,12 @@ impl CReprOf<Vec<String>> for CStringArray {
             data: Box::into_raw(
                 input
                     .into_iter()
-                    .map::<Result<*const libc::c_char, CReprOfError>, _>(|s| {
+                    .map::<Result<*const std::ffi::c_char, CReprOfError>, _>(|s| {
                         Ok(CString::c_repr_of(s)?.into_raw_pointer())
                     })
                     .collect::<Result<Vec<_>, _>>()?
                     .into_boxed_slice(),
-            ) as *const *const libc::c_char,
+            ) as *const *const std::ffi::c_char,
         })
     }
 }
@@ -82,7 +82,7 @@ impl CDrop for CStringArray {
     fn do_drop(&mut self) -> Result<(), CDropError> {
         unsafe {
             let y = Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                self.data as *mut *mut libc::c_char,
+                self.data as *mut *mut std::ffi::c_char,
                 self.size,
             ));
             for p in y.iter() {

@@ -59,9 +59,9 @@ pub struct Pancake {
 #[as_rust_extra_field(some_futile_info = None)]
 #[as_rust_extra_field(flattened_range = self.flattened_range_start..self.flattened_range_end)]
 pub struct CPancake {
-    name: *const libc::c_char,
+    name: *const std::ffi::c_char,
     #[nullable]
-    description: *const libc::c_char,
+    description: *const std::ffi::c_char,
     start: f32,
     #[nullable]
     end: *const f32,
@@ -80,7 +80,7 @@ pub struct CPancake {
     #[c_repr_of_convert(input.flattened_range.end)]
     flattened_range_end: i64,
     #[target_name(field_with_specific_rust_name)]
-    pub field_with_specific_c_name: *const libc::c_char,
+    pub field_with_specific_c_name: *const std::ffi::c_char,
     #[nullable]
     pancake_data: *const CArray<u8>,
     extra_ice_cream_flavor: CFlavor,
@@ -122,7 +122,7 @@ pub struct Layer {
 pub struct CLayer {
     number: i32,
     #[nullable]
-    subtitle: *const libc::c_char,
+    subtitle: *const std::ffi::c_char,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -136,7 +136,7 @@ pub struct Dummy {
 #[target_type(Dummy)]
 pub struct CDummy {
     count: i32,
-    describe: *const libc::c_char,
+    describe: *const std::ffi::c_char,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
