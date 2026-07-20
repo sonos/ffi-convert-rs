@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - move to edition 2024, MSRV 1.88
 - `CArray`, `CStringArray` and `CRange` have moved to the new `ffi-convert-extra-ctypes` crate. The core `ffi-convert` crate now only contains the conversion traits.
 - rewrote most of the documentation
+- use `std::ffi` instead of `libc` to remove an external dependency and fix compilation on `wasm32-unknown-unknown`
 
 ### Fixed
 - memory leak on array conversion error and performance / correctness improvement on array conversion

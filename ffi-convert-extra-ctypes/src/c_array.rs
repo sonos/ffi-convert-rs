@@ -28,7 +28,7 @@ use ffi_convert::{
 /// ```
 /// use ffi_convert::{AsRust, CDrop, CReprOf};
 /// use ffi_convert_extra_ctypes::CArray;
-/// use libc::c_char;
+/// use std::ffi::c_char;
 ///
 /// pub struct PizzaTopping {
 ///     pub ingredient: String,

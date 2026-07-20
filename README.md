@@ -14,7 +14,7 @@ boilerplate.
 
 ```rust
 use ffi_convert::{AsRust, CDrop, CReprOf};
-use libc::{c_char, c_float};
+use std::ffi::{c_char, c_float};
 
 pub struct Pizza {
     pub name: String,

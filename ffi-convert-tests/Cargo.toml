@@ -11,7 +11,6 @@ crate-type = ["rlib", "cdylib"]
 anyhow = "1.0.32"
 ffi-convert = { path ="../ffi-convert" }
 ffi-convert-extra-ctypes = { path ="../ffi-convert-extra-ctypes" }
-libc = "0.2.66"
 
 [features]
 asan = []
