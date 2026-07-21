@@ -1,6 +1,6 @@
 [package]
 name = "ffi-convert-derive"
-version = "0.8.0"
+version = "0.9.0-pre"
 authors = ["Sonos", "Anthony Reinette", "Thibaut Lorrain"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
