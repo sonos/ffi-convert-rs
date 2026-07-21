@@ -1,6 +1,6 @@
 [package]
 name = "ffi-convert-extra-ctypes"
-version = "0.8.0-pre"
+version = "0.8.0"
 authors = ["Sonos", "Anthony Reinette", "Thibaut Lorrain"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -10,4 +10,4 @@ readme = "../README.md"
 keywords = ["ffi"]
 
 [dependencies]
-ffi-convert = { path = "../ffi-convert" }
+ffi-convert = "0.8.0"

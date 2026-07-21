@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.0]
 ### Added
 - compilation errors in derived code are now linked to the field that provoked them rather than the whole struct
 
@@ -116,7 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
  - first release
 
-[Unreleased]: https://github.com/sonos/ffi-convert-rs/compare/0.7.0...HEAD
+[0.8.0]: https://github.com/sonos/ffi-convert-rs/compare/0.7.0...0.8.0
 [0.7.0]: https://github.com/sonos/ffi-convert-rs/compare/0.6.2...0.7.0
 [0.6.2]: https://github.com/sonos/ffi-convert-rs/compare/0.6.1...0.6.2
 [0.6.1]: https://github.com/sonos/ffi-convert-rs/compare/0.6.0...0.6.1
