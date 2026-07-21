@@ -1,0 +1,8 @@
+[workspace]
+resolver = "3"
+members = [
+    "ffi-convert",
+    "ffi-convert-derive",
+    "ffi-convert-extra-ctypes",
+    "ffi-convert-tests",
+]
