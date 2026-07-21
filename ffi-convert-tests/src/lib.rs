@@ -29,6 +29,15 @@ where
         bail!("The value is not the same before and after the roundtrip");
     }
 
+    let mut intermediate_manual_do_drop: T = T::c_repr_of(value.clone())?;
+    assert!(intermediate_manual_do_drop.do_drop().is_ok());
+
+    let mut intermediate_double_manual_do_drop: T = T::c_repr_of(value.clone())?;
+    assert!(intermediate_double_manual_do_drop.do_drop().is_ok());
+    // this one may fail, we just don't want it do double free something, this should
+    // be caught by asan
+    let _ = intermediate_double_manual_do_drop.do_drop();
+
     Ok(())
 }
 

@@ -29,20 +29,30 @@ fn impl_cdrop_struct(
                 ..
             } = field;
 
+            // The pointer field is nulled before being freed so that a second
+            // `do_drop` (e.g. from the generated `Drop` impl after a manual
+            // `do_drop`) cannot free the same allocation twice.
             let drop_field = if field.is_string {
                 quote!({
                     use ffi_convert::RawPointerConverter;
-                    unsafe { std::ffi::CString::drop_raw_pointer(self.#field_name) }?
+                    let field_ptr = self.#field_name;
+                    self.#field_name = std::ptr::null::<u8>() as _;
+                    unsafe { std::ffi::CString::drop_raw_pointer(field_ptr) }?
                 })
             } else if field.is_pointer {
-                match field_type {
+                let drop_call = match field_type {
                     TypeArrayOrTypePath::TypeArray(type_array) => {
-                        quote!( unsafe { <#type_array>::drop_raw_pointer(self.#field_name) }? )
+                        quote!( unsafe { <#type_array>::drop_raw_pointer(field_ptr) }? )
                     }
                     TypeArrayOrTypePath::TypePath(type_path) => {
-                        quote!( unsafe { #type_path::drop_raw_pointer(self.#field_name) }? )
+                        quote!( unsafe { #type_path::drop_raw_pointer(field_ptr) }? )
                     }
-                }
+                };
+                quote!({
+                    let field_ptr = self.#field_name;
+                    self.#field_name = std::ptr::null::<u8>() as _;
+                    #drop_call
+                })
             } else {
                 // the other cases will be handled automatically by rust
                 quote!()

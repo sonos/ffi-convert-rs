@@ -80,13 +80,20 @@ impl CReprOf<Vec<String>> for CStringArray {
 
 impl CDrop for CStringArray {
     fn do_drop(&mut self) -> Result<(), CDropError> {
-        unsafe {
-            let y = Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                self.data as *mut *mut std::ffi::c_char,
-                self.size,
-            ));
-            for p in y.iter() {
-                let _ = CString::from_raw_pointer(*p)?; // let's not panic if we fail here
+        if !self.data.is_null() {
+            // Null out the pointer before freeing so a second `do_drop` (e.g.
+            // from the `Drop` impl after a manual `do_drop`) is a no-op instead
+            // of a double free.
+            let data = std::mem::replace(&mut self.data, std::ptr::null());
+            let size = std::mem::replace(&mut self.size, 0);
+            unsafe {
+                let y = Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                    data as *mut *mut std::ffi::c_char,
+                    size,
+                ));
+                for p in y.iter() {
+                    let _ = CString::from_raw_pointer(*p)?; // let's not panic if we fail here
+                }
             }
         }
         Ok(())
