@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - memory leak on array conversion error and performance / correctness improvement on array conversion
+- potential double free when manually calling c_drop
 
 ## [0.7.0] - 2026-04-13
 ### Added

@@ -116,11 +116,13 @@ impl<U: CReprOf<V> + CDrop, V: 'static> CReprOf<Vec<V>> for CArray<U> {
 impl<T> CDrop for CArray<T> {
     fn do_drop(&mut self) -> Result<(), CDropError> {
         if !self.data_ptr.is_null() {
+            // Null out the pointer before freeing so a second `do_drop` (e.g.
+            // from the `Drop` impl after a manual `do_drop`) is a no-op instead
+            // of a double free.
+            let data_ptr = std::mem::replace(&mut self.data_ptr, ptr::null());
+            let size = std::mem::replace(&mut self.size, 0);
             let _ = unsafe {
-                Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                    self.data_ptr as *mut T,
-                    self.size,
-                ))
+                Box::from_raw(std::ptr::slice_from_raw_parts_mut(data_ptr as *mut T, size))
             };
         }
         Ok(())
