@@ -1,16 +1,18 @@
 use std::ffi::{CStr, CString};
 
+#[allow(deprecated)]
+use ffi_convert::CDrop;
 use ffi_convert::{
-    AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError, RawBorrow, RawPointerConverter,
+    AsRust, AsRustError, CDropError, CReprOf, CReprOfError, RawBorrow, RawPointerConverter,
 };
 
-/// A `#[repr(C)]` mirror of `Vec<String>` with impls of [`CReprOf`], [`CDrop`]
-/// and [`AsRust`].
+/// A `#[repr(C)]` mirror of `Vec<String>` with impls of [`CReprOf`] and
+/// [`AsRust`].
 ///
 /// Layout is a `(data, size)` pair where `data` is a pointer to a
 /// heap-allocated array of `*const c_char`, each pointing to its own
 /// nul-terminated C string allocated by the Rust side. The whole structure
-/// is freed via [`CDrop`](ffi_convert::CDrop) / [`Drop`].
+/// is freed via the [`Drop`] impl.
 ///
 /// Strings containing interior NUL bytes cannot be represented and will
 /// cause [`CReprOf::c_repr_of`](ffi_convert::CReprOf::c_repr_of) to fail
@@ -45,6 +47,25 @@ pub struct CStringArray {
 
 unsafe impl Sync for CStringArray {}
 
+impl CStringArray {
+    /// Idempotently release the heap buffer and the C strings it owns.
+    fn release_buffer(&mut self) -> Result<(), CDropError> {
+        if !self.data.is_null() {
+            unsafe {
+                let y = Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                    self.data as *mut *mut libc::c_char,
+                    self.size,
+                ));
+                for p in y.iter() {
+                    let _ = CString::from_raw_pointer(*p)?; // let's not panic if we fail here
+                }
+            }
+            self.data = std::ptr::null();
+        }
+        Ok(())
+    }
+}
+
 impl AsRust<Vec<String>> for CStringArray {
     fn as_rust(&self) -> Result<Vec<String>, AsRustError> {
         let mut result = vec![];
@@ -76,25 +97,21 @@ impl CReprOf<Vec<String>> for CStringArray {
             ) as *const *const libc::c_char,
         })
     }
+
+    fn do_drop(&mut self) -> Result<(), CDropError> {
+        self.release_buffer()
+    }
 }
 
+#[allow(deprecated)]
 impl CDrop for CStringArray {
     fn do_drop(&mut self) -> Result<(), CDropError> {
-        unsafe {
-            let y = Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                self.data as *mut *mut libc::c_char,
-                self.size,
-            ));
-            for p in y.iter() {
-                let _ = CString::from_raw_pointer(*p)?; // let's not panic if we fail here
-            }
-        }
-        Ok(())
+        self.release_buffer()
     }
 }
 
 impl Drop for CStringArray {
     fn drop(&mut self) {
-        let _ = self.do_drop();
+        let _ = self.release_buffer();
     }
 }

@@ -11,10 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - move to edition 2024, MSRV 1.88
 - `CArray`, `CStringArray` and `CRange` have moved to the new `ffi-convert-extra-ctypes` crate. The core `ffi-convert` crate now only contains the conversion traits.
+- `CDrop` has been merged into `CReprOf`: the cleanup hook (`do_drop`) is now a method on `CReprOf` itself, with a default no-op impl. The `#[derive(CReprOf)]` macro now also emits the `do_drop` body and the matching `Drop` impl, and reads `#[no_drop_impl]`. Migration: replace `#[derive(CReprOf, AsRust, CDrop)]` with `#[derive(CReprOf, AsRust)]`.
 - rewrote most of the documentation
+
+### Deprecated
+- the `CDrop` trait and its `#[derive(CDrop)]` macro are deprecated. The trait stays around (without changes) so existing `T: CDrop` bounds keep compiling; the derive is now a no-op.
 
 ### Fixed
 - memory leak on array conversion error and performance / correctness improvement on array conversion
+- `CArray` / `CStringArray` `do_drop` is now idempotent (sets the buffer pointer to null after freeing), so calling it manually before the value drops no longer double-frees
 
 ## [0.7.0] - 2026-04-13
 ### Added

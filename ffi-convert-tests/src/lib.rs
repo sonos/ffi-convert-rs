@@ -54,7 +54,7 @@ pub struct Pancake {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+#[derive(CReprOf, AsRust, RawPointerConverter)]
 #[target_type(Pancake)]
 #[as_rust_extra_field(some_futile_info = None)]
 #[as_rust_extra_field(flattened_range = self.flattened_range_start..self.flattened_range_end)]
@@ -92,7 +92,7 @@ pub struct Sauce {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+#[derive(CReprOf, AsRust, RawPointerConverter)]
 #[target_type(Sauce)]
 pub struct CSauce {
     volume: f32,
@@ -104,7 +104,7 @@ pub struct Topping {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+#[derive(CReprOf, AsRust, RawPointerConverter)]
 #[target_type(Topping)]
 pub struct CTopping {
     amount: i32,
@@ -117,7 +117,7 @@ pub struct Layer {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+#[derive(CReprOf, AsRust, RawPointerConverter)]
 #[target_type(Layer)]
 pub struct CLayer {
     number: i32,
@@ -132,7 +132,7 @@ pub struct Dummy {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+#[derive(CReprOf, AsRust, RawPointerConverter)]
 #[target_type(Dummy)]
 pub struct CDummy {
     count: i32,
@@ -147,7 +147,7 @@ pub enum Flavor {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop)]
+#[derive(CReprOf, AsRust)]
 #[target_type(Flavor)]
 pub enum CFlavor {
     Vanilla,

@@ -10,11 +10,11 @@
 //! | `Vec<String>`    | [`CStringArray`]               |
 //! | `std::ops::Range<T>` | [`CRange<T>`]              |
 //!
-//! Each mirror implements [`CReprOf`](ffi_convert::CReprOf),
-//! [`AsRust`](ffi_convert::AsRust), and [`CDrop`](ffi_convert::CDrop), so it
-//! can be embedded in any struct you derive the conversion traits on — see
-//! the top-level [`ffi-convert`](https://docs.rs/ffi-convert) documentation
-//! for how the pieces fit together.
+//! Each mirror implements [`CReprOf`](ffi_convert::CReprOf) and
+//! [`AsRust`](ffi_convert::AsRust), so it can be embedded in any struct you
+//! derive the conversion traits on — see the top-level
+//! [`ffi-convert`](https://docs.rs/ffi-convert) documentation for how the
+//! pieces fit together.
 //!
 //! This crate is optional: if none of these types fit your layout, depend on
 //! `ffi-convert` alone and define your own `#[repr(C)]` container with the

@@ -3,16 +3,22 @@ use proc_macro::TokenStream;
 use quote::{quote, quote_spanned};
 
 use crate::utils::{
-    Field, TypeArrayOrTypePath, parse_enum_variants, parse_struct_fields, parse_target_type,
+    Field, TypeArrayOrTypePath, parse_enum_variants, parse_no_drop_impl_flag, parse_struct_fields,
+    parse_target_type,
 };
 
 pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
     let name = &input.ident;
     let target_type = parse_target_type(&input.attrs);
+    let disable_drop_impl = parse_no_drop_impl_flag(&input.attrs);
 
     match &input.data {
-        syn::Data::Struct(data_struct) => impl_creprof_struct(name, &target_type, data_struct),
-        syn::Data::Enum(data_enum) => impl_creprof_enum(name, &target_type, data_enum),
+        syn::Data::Struct(data_struct) => {
+            impl_creprof_struct(name, &target_type, disable_drop_impl, data_struct)
+        }
+        syn::Data::Enum(data_enum) => {
+            impl_creprof_enum(name, &target_type, disable_drop_impl, data_enum)
+        }
         _ => panic!("CReprOf can only be derived for structs and unit enums"),
     }
 }
@@ -20,11 +26,12 @@ pub fn impl_creprof_macro(input: &syn::DeriveInput) -> TokenStream {
 fn impl_creprof_struct(
     struct_name: &syn::Ident,
     target_type: &syn::Path,
+    disable_drop_impl: bool,
     data: &syn::DataStruct,
 ) -> TokenStream {
     let fields = parse_struct_fields(data);
     let c_repr_of_fields = fields
-        .into_iter()
+        .iter()
         .map(|field| {
             let Field {
                 name: field_name,
@@ -72,7 +79,47 @@ fn impl_creprof_struct(
         })
         .collect::<Vec<_>>();
 
-    quote!(
+    let do_drop_fields = fields
+        .iter()
+        .map(|field| {
+            let Field {
+                name: field_name,
+                field_type,
+                ..
+            } = field;
+            let field_span = field_name.span();
+
+            let drop_field = if field.is_string {
+                quote_spanned!(field_span => {
+                    unsafe { std::ffi::CString::drop_raw_pointer(self.#field_name) }?
+                })
+            } else if field.is_pointer {
+                match field_type {
+                    TypeArrayOrTypePath::TypeArray(type_array) => {
+                        quote_spanned!(field_span => unsafe { <#type_array>::drop_raw_pointer(self.#field_name) }? )
+                    }
+                    TypeArrayOrTypePath::TypePath(type_path) => {
+                        quote_spanned!(field_span => unsafe { #type_path::drop_raw_pointer(self.#field_name) }? )
+                    }
+                }
+            } else {
+                // the other cases will be handled automatically by rust
+                quote!()
+            };
+
+            if field.is_nullable {
+                quote_spanned!(field_span =>
+                    if !self.#field_name.is_null() {
+                       # drop_field
+                    }
+                )
+            } else {
+                drop_field
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let creprof_impl = quote!(
         impl CReprOf<#target_type> for #struct_name {
             fn c_repr_of(input: #target_type) -> Result<Self, ffi_convert::CReprOfError> {
                 use ffi_convert::RawPointerConverter;
@@ -80,14 +127,35 @@ fn impl_creprof_struct(
                     #(#c_repr_of_fields,)*
                 })
             }
+
+            fn do_drop(&mut self) -> Result<(), ffi_convert::CDropError> {
+                use ffi_convert::RawPointerConverter;
+                #(#do_drop_fields;)*
+                Ok(())
+            }
         }
-    )
+    );
+
+    let drop_impl = quote!(
+        impl Drop for #struct_name {
+            fn drop(&mut self) {
+                let _ = self.do_drop();
+            }
+        }
+    );
+
+    if disable_drop_impl {
+        quote!(#creprof_impl)
+    } else {
+        quote!(#creprof_impl #drop_impl)
+    }
     .into()
 }
 
 fn impl_creprof_enum(
     enum_name: &syn::Ident,
     target_type: &syn::Path,
+    disable_drop_impl: bool,
     data: &syn::DataEnum,
 ) -> TokenStream {
     let variants = parse_enum_variants(data);
@@ -96,7 +164,7 @@ fn impl_creprof_enum(
         .iter()
         .map(|variant| quote!(#target_type::#variant => Ok(#enum_name::#variant)));
 
-    quote!(
+    let creprof_impl = quote!(
         impl CReprOf<#target_type> for #enum_name {
             fn c_repr_of(input: #target_type) -> Result<Self, ffi_convert::CReprOfError> {
                 match input {
@@ -104,6 +172,20 @@ fn impl_creprof_enum(
                 }
             }
         }
-    )
+    );
+
+    let drop_impl = quote!(
+        impl Drop for #enum_name {
+            fn drop(&mut self) {
+                let _ = self.do_drop();
+            }
+        }
+    );
+
+    if disable_drop_impl {
+        quote!(#creprof_impl)
+    } else {
+        quote!(#creprof_impl #drop_impl)
+    }
     .into()
 }

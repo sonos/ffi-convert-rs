@@ -1,12 +1,12 @@
 //! Derive macros for the conversion traits provided by the
 //! [`ffi-convert`](https://docs.rs/ffi-convert) crate.
 //!
-//! The four derives are also re-exported from `ffi-convert`, so users of
+//! The derives are also re-exported from `ffi-convert`, so users of
 //! `ffi-convert` typically do not need to depend on this crate directly.
 //!
 //! See the top-level [`ffi-convert`](https://docs.rs/ffi-convert) documentation
 //! for the overall design, the type-mapping table, and the caveats that apply
-//! to all four derives. The per-macro documentation below lists the supported
+//! to the derives. The per-macro documentation below lists the supported
 //! helper attributes.
 
 extern crate proc_macro;
@@ -31,10 +31,19 @@ use rawpointerconverter::impl_rawpointerconverter_macro;
 /// [`RawPointerConverter::into_raw_pointer`](../ffi_convert/trait.RawPointerConverter.html),
 /// and remaining fields go through their own `CReprOf` impl.
 ///
+/// The derive also emits the
+/// [`do_drop`](../ffi_convert/trait.CReprOf.html#method.do_drop) override that
+/// releases the heap memory the conversion allocates, plus a matching
+/// [`Drop`] impl that calls `do_drop`. Use `#[no_drop_impl]` to skip the
+/// blanket `Drop` impl when you need to write one manually.
+///
 /// # Struct-level attributes
 ///
 /// - `#[target_type(Path)]` — **required**. The idiomatic Rust type this
 ///   `#[repr(C)]` struct mirrors.
+/// - `#[no_drop_impl]` — generate the `CReprOf` impl (with `do_drop`) but
+///   skip the blanket `Drop` impl. A handwritten `Drop` should call
+///   `do_drop`, otherwise pointer fields leak.
 ///
 /// # Field-level attributes
 ///
@@ -53,7 +62,13 @@ use rawpointerconverter::impl_rawpointerconverter_macro;
 /// Enums are supported only if every variant is a unit variant.
 #[proc_macro_derive(
     CReprOf,
-    attributes(target_type, nullable, c_repr_of_convert, target_name)
+    attributes(
+        target_type,
+        nullable,
+        c_repr_of_convert,
+        target_name,
+        no_drop_impl
+    )
 )]
 pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();
@@ -69,8 +84,8 @@ pub fn creprof_derive(token_stream: TokenStream) -> TokenStream {
 /// their own `AsRust` impl; remaining fields go through their own `AsRust`
 /// impl directly.
 ///
-/// The derived `AsRust` reads pointer fields under the same layout assumptions
-/// as `CReprOf` / `CDrop`; deriving all three together keeps them in sync.
+/// The derived `AsRust` reads pointer fields under the same layout
+/// assumptions as `CReprOf`; deriving the two together keeps them in sync.
 ///
 /// # Struct-level attributes
 ///
@@ -108,33 +123,14 @@ pub fn asrust_derive(token_stream: TokenStream) -> TokenStream {
     impl_asrust_macro(&ast)
 }
 
-/// Derive [`CDrop`](../ffi_convert/trait.CDrop.html) and (by default) [`Drop`]
-/// for a struct or unit enum.
+/// **Deprecated**: `#[derive(CDrop)]` is a no-op kept for source
+/// compatibility. The behavior previously emitted by this derive — the
+/// `CDrop`/`do_drop` impl and the `Drop` impl — is now produced by
+/// [`#[derive(CReprOf)]`](crate::CReprOf).
 ///
-/// The generated `do_drop` releases every owning pointer field by calling
-/// [`RawPointerConverter::drop_raw_pointer`](../ffi_convert/trait.RawPointerConverter.html),
-/// which takes the value back from the raw pointer and lets it drop. Non-pointer
-/// fields are left to Rust's regular drop glue.
-///
-/// Deriving [`CDrop`] assumes the struct owns its pointer fields and was initialized
-/// via `CReprOf::c_repr_of`. Derive `CReprOf` and `CDrop`  together to keep their
-/// assumptions in sync.
-///
-/// The default output also emits a `Drop` impl that calls `do_drop`, so that
-/// letting a value go out of scope releases its pointer fields. A `CDrop`
-/// impl without a matching `Drop` leaks every pointer field on scope exit.
-///
-/// # Struct-level attributes
-///
-/// - `#[no_drop_impl]` — generate only the `CDrop` impl and skip the blanket
-///   `Drop` impl. Use this when you need a manual `Drop`; that manual `Drop`
-///   should call `do_drop`, otherwise the pointer fields leak.
-///
-/// # Field-level attributes
-///
-/// - `#[nullable]` — skip the free when the pointer is null. This is the same
-///   attribute that `CReprOf` and `AsRust` read on the field; annotate the
-///   field once and all three derives stay in sync.
+/// Replace `#[derive(CReprOf, AsRust, CDrop)]` with
+/// `#[derive(CReprOf, AsRust)]`. The `#[no_drop_impl]` attribute is now
+/// honored by the `CReprOf` derive.
 #[proc_macro_derive(CDrop, attributes(no_drop_impl, nullable))]
 pub fn cdrop_derive(token_stream: TokenStream) -> TokenStream {
     let ast = syn::parse(token_stream).unwrap();

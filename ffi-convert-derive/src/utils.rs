@@ -25,7 +25,7 @@ pub fn parse_enum_variants(data: &syn::DataEnum) -> Vec<&syn::Ident> {
         .map(|variant| {
             if !variant.fields.is_empty() {
                 panic!(
-                    "CReprOf, AsRust, and CDrop derive for enums only supports unit variants \
+                    "CReprOf and AsRust derive for enums only supports unit variants \
                      (no fields). Variant `{}` has fields.",
                     variant.ident
                 );

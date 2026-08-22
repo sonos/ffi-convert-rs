@@ -1,14 +1,15 @@
 use std::any::TypeId;
 use std::ptr;
 
+#[allow(deprecated)]
+use ffi_convert::CDrop;
 use ffi_convert::{
-    AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError, RawPointerConverter,
+    AsRust, AsRustError, CDropError, CReprOf, CReprOfError, RawPointerConverter,
     UnexpectedNullPointerError, convert_into_raw_pointer, convert_into_raw_pointer_mut,
     take_back_from_raw_pointer, take_back_from_raw_pointer_mut,
 };
 
-/// A `#[repr(C)]` mirror of [`Vec<U>`] with impls of [`CReprOf`], [`CDrop`]
-/// and [`AsRust`].
+/// A `#[repr(C)]` mirror of [`Vec<U>`] with impls of [`CReprOf`] and [`AsRust`].
 ///
 /// Layout is a `(data_ptr, size)` pair. An empty array is represented with a
 /// null `data_ptr` and `size == 0`.
@@ -19,14 +20,13 @@ use ffi_convert::{
 /// `ptr::copy` into a new `Vec`. Otherwise each element is converted
 /// individually through its `CReprOf` / `AsRust` implementation.
 ///
-/// `CArray` owns the backing buffer and frees it via its [`Drop`] impl (by
-/// way of [`CDrop`]). Do not reconstruct a `CArray` from a pointer you do not
-/// own.
+/// `CArray` owns the backing buffer and frees it via its [`Drop`] impl. Do
+/// not reconstruct a `CArray` from a pointer you do not own.
 ///
 /// # Example
 ///
 /// ```
-/// use ffi_convert::{AsRust, CDrop, CReprOf};
+/// use ffi_convert::{AsRust, CReprOf};
 /// use ffi_convert_extra_ctypes::CArray;
 /// use libc::c_char;
 ///
@@ -34,7 +34,7 @@ use ffi_convert::{
 ///     pub ingredient: String,
 /// }
 ///
-/// #[derive(CReprOf, AsRust, CDrop)]
+/// #[derive(CReprOf, AsRust)]
 /// #[target_type(PizzaTopping)]
 /// pub struct CPizzaTopping {
 ///     pub ingredient: *const c_char,
@@ -62,6 +62,21 @@ pub struct CArray<T> {
     pub size: usize,
 }
 
+impl<T> CArray<T> {
+    /// Idempotently release the heap buffer that backs this `CArray`.
+    fn release_buffer(&mut self) {
+        if !self.data_ptr.is_null() {
+            let _ = unsafe {
+                Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                    self.data_ptr as *mut T,
+                    self.size,
+                ))
+            };
+            self.data_ptr = ptr::null();
+        }
+    }
+}
+
 impl<U: AsRust<V> + 'static, V> AsRust<Vec<V>> for CArray<U> {
     fn as_rust(&self) -> Result<Vec<V>, AsRustError> {
         let mut vec = Vec::with_capacity(self.size);
@@ -85,7 +100,7 @@ impl<U: AsRust<V> + 'static, V> AsRust<Vec<V>> for CArray<U> {
     }
 }
 
-impl<U: CReprOf<V> + CDrop, V: 'static> CReprOf<Vec<V>> for CArray<U> {
+impl<U: CReprOf<V>, V: 'static> CReprOf<Vec<V>> for CArray<U> {
     fn c_repr_of(input: Vec<V>) -> Result<Self, CReprOfError> {
         let input_size = input.len();
         let mut output: CArray<U> = CArray {
@@ -111,25 +126,24 @@ impl<U: CReprOf<V> + CDrop, V: 'static> CReprOf<Vec<V>> for CArray<U> {
         }
         Ok(output)
     }
+
+    fn do_drop(&mut self) -> Result<(), CDropError> {
+        self.release_buffer();
+        Ok(())
+    }
 }
 
+#[allow(deprecated)]
 impl<T> CDrop for CArray<T> {
     fn do_drop(&mut self) -> Result<(), CDropError> {
-        if !self.data_ptr.is_null() {
-            let _ = unsafe {
-                Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                    self.data_ptr as *mut T,
-                    self.size,
-                ))
-            };
-        }
+        self.release_buffer();
         Ok(())
     }
 }
 
 impl<T> Drop for CArray<T> {
     fn drop(&mut self) {
-        let _ = self.do_drop();
+        self.release_buffer();
     }
 }
 

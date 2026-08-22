@@ -17,20 +17,31 @@ pub enum CReprOfError {
 }
 
 /// Consuming conversion **from** an idiomatic Rust value **to** its
-/// `#[repr(C)]` mirror.
+/// `#[repr(C)]` mirror, plus the cleanup hook that releases any heap memory
+/// the resulting value allocates.
 ///
 /// Implementing `CReprOf<U>` for `T` states that `T` is a C-compatible layout
 /// of the Rust value `U` and that a `T` can be built from a `U`. The resulting
-/// `T` owns any heap memory it allocates, and that memory is reclaimed by the
-/// corresponding [`CDrop`] implementation.
+/// `T` owns any heap memory it allocates, and that memory is reclaimed by
+/// [`do_drop`](CReprOf::do_drop) — typically called from a [`Drop`] impl.
+///
+/// `do_drop` has a default no-op implementation so types without owning
+/// pointer fields don't need to override it.
 ///
 /// see  [Deriving the traits](crate#deriving-the-traits).
-pub trait CReprOf<T>: Sized + CDrop {
+pub trait CReprOf<T>: Sized {
     /// Consume `input` and return its C-compatible representation.
     fn c_repr_of(input: T) -> Result<Self, CReprOfError>;
+
+    /// Release any Rust-owned memory referenced by `self`. The derived
+    /// [`Drop`] impl calls this and discards the result, so errors raised
+    /// from a normal drop are not observed.
+    fn do_drop(&mut self) -> Result<(), CDropError> {
+        Ok(())
+    }
 }
 
-/// Error returned by [`CDrop::do_drop`].
+/// Error returned by [`CReprOf::do_drop`].
 #[derive(Error, Debug)]
 pub enum CDropError {
     /// A non-nullable pointer field was found to be null while dropping.
@@ -41,22 +52,18 @@ pub enum CDropError {
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
-/// Releases heap memory referenced by a C-compatible value behind raw pointer
-/// fields (typically data that was moved into a `Box` and leaked via
-/// [`Box::into_raw`]).
+/// Deprecated: the `do_drop` method has moved onto [`CReprOf`]. Implement
+/// [`CReprOf::do_drop`] instead and rely on the [`Drop`] impl emitted by
+/// `#[derive(CReprOf)]`.
 ///
-/// By default, [`#[derive(CDrop)]`](ffi_convert_derive::CDrop) emits both a
-/// [`CDrop`] impl and a matching [`Drop`] impl that calls
-/// [`do_drop`](CDrop::do_drop), so dropping the value through Rust's normal
-/// path releases its pointer fields. `#[no_drop_impl]` suppresses only the
-/// [`Drop`] impl; in that case a handwritten [`Drop`] must call `do_drop`
-/// itself, otherwise the pointer fields are leaked.
-///
-/// see [Deriving the traits](crate#deriving-the-traits).
+/// The trait is kept around so existing `T: CDrop` bounds in downstream code
+/// still compile against this release.
+#[deprecated(
+    since = "0.8.0",
+    note = "merged into CReprOf — implement CReprOf::do_drop instead"
+)]
 pub trait CDrop {
-    /// Release any Rust-owned memory referenced by `self`. The derived
-    /// [`Drop`] impl calls this and discards the result, so errors raised
-    /// from a normal drop are not observed.
+    /// Release any Rust-owned memory referenced by `self`.
     fn do_drop(&mut self) -> Result<(), CDropError>;
 }
 
@@ -287,6 +294,7 @@ impl RawBorrow<libc::c_char> for std::ffi::CStr {
 
 macro_rules! impl_noop_c_drop_for {
     ($typ:ty) => {
+        #[allow(deprecated)]
         impl CDrop for $typ {
             fn do_drop(&mut self) -> Result<(), CDropError> {
                 Ok(())
@@ -421,10 +429,7 @@ impl_rawpointerconverter_for!(f32);
 impl_rawpointerconverter_for!(f64);
 impl_rawpointerconverter_for!(bool);
 
-impl<U, T: CReprOf<U>, const N: usize> CReprOf<[U; N]> for [T; N]
-where
-    [T; N]: CDrop,
-{
+impl<U, T: CReprOf<U>, const N: usize> CReprOf<[U; N]> for [T; N] {
     fn c_repr_of(values: [U; N]) -> Result<[T; N], CReprOfError> {
         let mut array: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
 
@@ -440,7 +445,7 @@ where
                     for item in &mut array[0..n] {
                         // SAFETY: `item` is certain to be initialized
                         unsafe {
-                            let _ = item.assume_init_mut().do_drop();
+                            let _ = T::do_drop(item.assume_init_mut());
                         }
                     }
 
@@ -456,8 +461,23 @@ where
         };
         Ok(array)
     }
+
+    fn do_drop(&mut self) -> Result<(), CDropError> {
+        let mut result = Ok(());
+
+        for value in self {
+            if let Err(err) = T::do_drop(value)
+                && result.is_ok()
+            {
+                result = Err(err);
+            }
+        }
+
+        result
+    }
 }
 
+#[allow(deprecated)]
 impl<T: CDrop, const N: usize> CDrop for [T; N] {
     fn do_drop(&mut self) -> Result<(), CDropError> {
         let mut result = Ok(());
