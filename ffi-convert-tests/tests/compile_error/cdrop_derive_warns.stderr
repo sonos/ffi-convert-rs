@@ -7,5 +7,5 @@ error: use of deprecated constant `_FFI_CONVERT_CDROP_DEPRECATED_COwner`: `CDrop
 note: the lint level is defined here
   --> tests/compile_error/cdrop_derive_warns.rs:3:9
    |
- 3 | #![deny(deprecated)]
+3  | #![deny(deprecated)]
    |         ^^^^^^^^^^
