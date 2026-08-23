@@ -9,8 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 ### Changed
+- `#[derive(CReprOf)]` now emits a `Drop` impl freeing the pointer fields, if any
+
+### Deprecated
+- the `CDrop` trait, its derive (now a no-op) and `CDropError`
 
 ### Fixed
+- `CArray::c_repr_of` now returns an error instead of panicking when an element fails to convert
 
 ## [0.8.0] - 2026-07-21
 ### Added

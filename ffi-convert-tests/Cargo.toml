@@ -19,3 +19,4 @@ msan = []
 [dev-dependencies]
 cbindgen = "0.29"
 cc = "1"
+trybuild = "1"

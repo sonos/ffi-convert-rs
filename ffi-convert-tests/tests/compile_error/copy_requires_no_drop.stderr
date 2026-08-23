@@ -1,0 +1,5 @@
+error[E0184]: the trait `Copy` cannot be implemented for this type; the type has a destructor
+  --> tests/compile_error/copy_requires_no_drop.rs:11:17
+   |
+11 | #[derive(Clone, Copy, CReprOf)]
+   |                 ^^^^ `Copy` not allowed on types with destructors

@@ -29,15 +29,6 @@ where
         bail!("The value is not the same before and after the roundtrip");
     }
 
-    let mut intermediate_manual_do_drop: T = T::c_repr_of(value.clone())?;
-    assert!(intermediate_manual_do_drop.do_drop().is_ok());
-
-    let mut intermediate_double_manual_do_drop: T = T::c_repr_of(value.clone())?;
-    assert!(intermediate_double_manual_do_drop.do_drop().is_ok());
-    // this one may fail, we just don't want it do double free something, this should
-    // be caught by asan
-    let _ = intermediate_double_manual_do_drop.do_drop();
-
     Ok(())
 }
 
@@ -63,7 +54,7 @@ pub struct Pancake {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+#[derive(CReprOf, AsRust, RawPointerConverter)]
 #[target_type(Pancake)]
 #[as_rust_extra_field(some_futile_info = None)]
 #[as_rust_extra_field(flattened_range = self.flattened_range_start..self.flattened_range_end)]
@@ -100,8 +91,9 @@ pub struct Sauce {
     pub volume: f32,
 }
 
+// `Copy` checks that the derive emits no `Drop` impl for a pointer-free struct
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+#[derive(Clone, Copy, CReprOf, AsRust, RawPointerConverter)]
 #[target_type(Sauce)]
 pub struct CSauce {
     volume: f32,
@@ -113,7 +105,7 @@ pub struct Topping {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+#[derive(CReprOf, AsRust, RawPointerConverter)]
 #[target_type(Topping)]
 pub struct CTopping {
     amount: i32,
@@ -126,7 +118,7 @@ pub struct Layer {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+#[derive(CReprOf, AsRust, RawPointerConverter)]
 #[target_type(Layer)]
 pub struct CLayer {
     number: i32,
@@ -141,7 +133,7 @@ pub struct Dummy {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop, RawPointerConverter)]
+#[derive(CReprOf, AsRust, RawPointerConverter)]
 #[target_type(Dummy)]
 pub struct CDummy {
     count: i32,
@@ -155,8 +147,9 @@ pub enum Flavor {
     Strawberry,
 }
 
+// `Copy` checks that the derive emits no `Drop` impl for a unit enum
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop)]
+#[derive(Clone, Copy, CReprOf, AsRust)]
 #[target_type(Flavor)]
 pub enum CFlavor {
     Vanilla,
@@ -207,6 +200,21 @@ mod tests {
             describe: "yo".to_string(),
         }
     });
+
+    #[test]
+    fn c_array_conversion_error_returns_err() {
+        let dummies = vec![
+            Dummy {
+                count: 1,
+                describe: "ok".to_string(),
+            },
+            Dummy {
+                count: 2,
+                describe: "interior\0nul".to_string(),
+            },
+        ];
+        assert!(CArray::<CDummy>::c_repr_of(dummies).is_err());
+    }
 
     generate_round_trip_rust_c_rust!(round_trip_layer, Layer, CLayer, {
         Layer {
@@ -309,11 +317,13 @@ mod tests {
 
         // Generate the C header with cbindgen
         let header_path = work_dir.join("ffi_convert_tests.h");
-        let mut config = cbindgen::Config::default();
-        config.language = cbindgen::Language::C;
-        config.parse = cbindgen::ParseConfig {
-            parse_deps: true,
-            include: Some(vec!["ffi-convert-extra-ctypes".to_string()]),
+        let config = cbindgen::Config {
+            language: cbindgen::Language::C,
+            parse: cbindgen::ParseConfig {
+                parse_deps: true,
+                include: Some(vec!["ffi-convert-extra-ctypes".to_string()]),
+                ..Default::default()
+            },
             ..Default::default()
         };
         let bindings = cbindgen::Builder::new()
