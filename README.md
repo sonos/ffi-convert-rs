@@ -8,12 +8,12 @@
 a minimum of unsafe ceremony.**
 
 `ffi-convert` provides two conversion traits — `CReprOf` (Rust → C) and
-`AsRust` (C → Rust) — plus `CDrop` and `RawPointerConverter` to handle
-ownership of pointer fields, and derive macros that take care of the
-boilerplate.
+`AsRust` (C → Rust) — plus `RawPointerConverter` to handle pointer
+ownership, and derive macros that take care of the boilerplate, including
+the `Drop` impl that frees the heap data the C-compatible value owns.
 
 ```rust
-use ffi_convert::{AsRust, CDrop, CReprOf};
+use ffi_convert::{AsRust, CReprOf};
 use std::ffi::{c_char, c_float};
 
 pub struct Pizza {
@@ -22,7 +22,7 @@ pub struct Pizza {
 }
 
 #[repr(C)]
-#[derive(CReprOf, AsRust, CDrop)]
+#[derive(CReprOf, AsRust)]
 #[target_type(Pizza)]
 pub struct CPizza {
     pub name: *const c_char,
@@ -38,8 +38,8 @@ let again: Pizza = c_pizza.as_rust().unwrap();          // C    -> Rust
 
 | Crate                                                                      | What's in it                                                                                           |
 |----------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------|
-| [`ffi-convert`](./ffi-convert)                                             | The conversion traits (`CReprOf`, `AsRust`, `CDrop`, `RawPointerConverter`, `RawBorrow`).              |
-| [`ffi-convert-derive`](./ffi-convert-derive)                               | `#[derive(...)]` macros for all four conversion traits. Re-exported from `ffi-convert`.                |
+| [`ffi-convert`](./ffi-convert)                                             | The conversion traits (`CReprOf`, `AsRust`, `RawPointerConverter`, `RawBorrow`).                       |
+| [`ffi-convert-derive`](./ffi-convert-derive)                               | `#[derive(...)]` macros for the conversion traits. Re-exported from `ffi-convert`.                     |
 | [`ffi-convert-extra-ctypes`](./ffi-convert-extra-ctypes)                   | Optional C-compatible containers: `CArray<T>` (`Vec<U>`), `CStringArray` (`Vec<String>`), `CRange<T>`. |
 | [`ffi-convert-tests`](./ffi-convert-tests)                                 | Workspace tests, including C round-trip tests with AddressSanitizer / MemorySanitizer.                 |
 

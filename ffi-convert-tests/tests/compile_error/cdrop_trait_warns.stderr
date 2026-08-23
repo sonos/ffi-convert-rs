@@ -1,0 +1,17 @@
+error: use of deprecated trait `ffi_convert::CDrop`: `CDrop` is now a no-op and references to it can be removed; if you were calling `do_drop` to manually free memory, directly `drop` the value instead
+ --> tests/compile_error/cdrop_trait_warns.rs:5:18
+  |
+5 | use ffi_convert::CDrop;
+  |                  ^^^^^
+  |
+note: the lint level is defined here
+ --> tests/compile_error/cdrop_trait_warns.rs:3:9
+  |
+3 | #![deny(deprecated)]
+  |         ^^^^^^^^^^
+
+error: use of deprecated trait `ffi_convert::CDrop`: `CDrop` is now a no-op and references to it can be removed; if you were calling `do_drop` to manually free memory, directly `drop` the value instead
+ --> tests/compile_error/cdrop_trait_warns.rs:7:26
+  |
+7 | fn assert_impls_cdrop<T: CDrop>() {}
+  |                          ^^^^^

@@ -9,12 +9,6 @@ pub fn parse_target_type(attrs: &[syn::Attribute]) -> syn::Path {
     target_type_attribute.parse_args().unwrap()
 }
 
-pub fn parse_no_drop_impl_flag(attrs: &[syn::Attribute]) -> bool {
-    attrs.iter().any(|attribute| {
-        attribute.path.get_ident().map(|it| it.to_string()) == Some("no_drop_impl".to_string())
-    })
-}
-
 pub fn parse_struct_fields(data: &syn::DataStruct) -> Vec<Field<'_>> {
     data.fields.iter().map(parse_field).collect::<Vec<Field>>()
 }
@@ -25,7 +19,7 @@ pub fn parse_enum_variants(data: &syn::DataEnum) -> Vec<&syn::Ident> {
         .map(|variant| {
             if !variant.fields.is_empty() {
                 panic!(
-                    "CReprOf, AsRust, and CDrop derive for enums only supports unit variants \
+                    "CReprOf and AsRust derive for enums only supports unit variants \
                      (no fields). Variant `{}` has fields.",
                     variant.ident
                 );
@@ -222,9 +216,9 @@ mod tests {
 
         let parsed_fields = fields.named.iter().map(parse_field).collect::<Vec<Field>>();
 
-        assert_eq!(parsed_fields[0].is_string, false);
-        assert_eq!(parsed_fields[0].is_pointer, true);
-        assert_eq!(parsed_fields[0].is_nullable, false);
+        assert!(!parsed_fields[0].is_string);
+        assert!(parsed_fields[0].is_pointer);
+        assert!(!parsed_fields[0].is_nullable);
 
         if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[0].field_type {
             assert_eq!(type_path.path.segments.len(), 2);
@@ -246,17 +240,16 @@ mod tests {
         let parsed_fields = fields
             .named
             .iter()
-            .map(|f| {
+            .inspect(|&f| {
                 println!("f : {:?}", f);
-                f
             })
             .map(parse_field)
             .collect::<Vec<Field>>();
 
-        assert_eq!(parsed_fields[0].is_pointer, true);
-        assert_eq!(parsed_fields[1].is_pointer, true);
-        assert_eq!(parsed_fields[0].is_string, false);
-        assert_eq!(parsed_fields[1].is_string, false);
+        assert!(parsed_fields[0].is_pointer);
+        assert!(parsed_fields[1].is_pointer);
+        assert!(!parsed_fields[0].is_string);
+        assert!(!parsed_fields[1].is_string);
 
         let field_type0 =
             if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[0].field_type {
@@ -291,17 +284,16 @@ mod tests {
         let parsed_fields = fields
             .named
             .iter()
-            .map(|f| {
+            .inspect(|&f| {
                 println!("f : {:?}", f);
-                f
             })
             .map(parse_field)
             .collect::<Vec<Field>>();
 
-        assert_eq!(parsed_fields[0].is_pointer, true);
-        assert_eq!(parsed_fields[1].is_pointer, true);
-        assert_eq!(parsed_fields[0].is_string, false);
-        assert_eq!(parsed_fields[1].is_string, false);
+        assert!(parsed_fields[0].is_pointer);
+        assert!(parsed_fields[1].is_pointer);
+        assert!(!parsed_fields[0].is_string);
+        assert!(!parsed_fields[1].is_string);
 
         let field_type0 =
             if let TypeArrayOrTypePath::TypePath(type_path) = &parsed_fields[0].field_type {

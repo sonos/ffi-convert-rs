@@ -39,7 +39,7 @@ fn impl_asrust_struct(
 
             if field.levels_of_indirection > 1 && !field.is_nullable {
                 panic!(
-                    "The CReprOf, AsRust, and CDrop traits cannot be derived automatically: \
+                    "The CReprOf and AsRust traits cannot be derived automatically: \
                     The field {} is a pointer field has too many levels of indirection \
                     ({} in this case). Please implements those traits manually.",
                     field_name, field.levels_of_indirection

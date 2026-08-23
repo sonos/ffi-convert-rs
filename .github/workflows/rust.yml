@@ -25,6 +25,8 @@ jobs:
       run: rustup toolchain install 1.88 --component clippy
     - name: Run tests on MSRV
       run: cargo +1.88 test --verbose
+    - name: Run compile checks on MSRV
+      run: cargo +1.88 test -p ffi-convert-tests --test compile_checks --features compile-checks --verbose
     - name: Clippy on MSRV
       run: cargo +1.88 clippy -- -D clippy::all
     - name: Install nightly toolchain

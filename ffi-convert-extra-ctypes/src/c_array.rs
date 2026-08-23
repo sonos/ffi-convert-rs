@@ -2,13 +2,12 @@ use std::any::TypeId;
 use std::ptr;
 
 use ffi_convert::{
-    AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError, RawPointerConverter,
-    UnexpectedNullPointerError, convert_into_raw_pointer, convert_into_raw_pointer_mut,
-    take_back_from_raw_pointer, take_back_from_raw_pointer_mut,
+    AsRust, AsRustError, CReprOf, CReprOfError, RawPointerConverter, UnexpectedNullPointerError,
+    convert_into_raw_pointer, convert_into_raw_pointer_mut, take_back_from_raw_pointer,
+    take_back_from_raw_pointer_mut,
 };
 
-/// A `#[repr(C)]` mirror of [`Vec<U>`] with impls of [`CReprOf`], [`CDrop`]
-/// and [`AsRust`].
+/// A `#[repr(C)]` mirror of [`Vec<U>`] with impls of [`CReprOf`] and [`AsRust`].
 ///
 /// Layout is a `(data_ptr, size)` pair. An empty array is represented with a
 /// null `data_ptr` and `size == 0`.
@@ -19,14 +18,13 @@ use ffi_convert::{
 /// `ptr::copy` into a new `Vec`. Otherwise each element is converted
 /// individually through its `CReprOf` / `AsRust` implementation.
 ///
-/// `CArray` owns the backing buffer and frees it via its [`Drop`] impl (by
-/// way of [`CDrop`]). Do not reconstruct a `CArray` from a pointer you do not
-/// own.
+/// `CArray` owns the backing buffer and frees it via its [`Drop`] impl. Do
+/// not reconstruct a `CArray` from a pointer you do not own.
 ///
 /// # Example
 ///
 /// ```
-/// use ffi_convert::{AsRust, CDrop, CReprOf};
+/// use ffi_convert::{AsRust, CReprOf};
 /// use ffi_convert_extra_ctypes::CArray;
 /// use std::ffi::c_char;
 ///
@@ -34,7 +32,7 @@ use ffi_convert::{
 ///     pub ingredient: String,
 /// }
 ///
-/// #[derive(CReprOf, AsRust, CDrop)]
+/// #[derive(CReprOf, AsRust)]
 /// #[target_type(PizzaTopping)]
 /// pub struct CPizzaTopping {
 ///     pub ingredient: *const c_char,
@@ -85,7 +83,7 @@ impl<U: AsRust<V> + 'static, V> AsRust<Vec<V>> for CArray<U> {
     }
 }
 
-impl<U: CReprOf<V> + CDrop, V: 'static> CReprOf<Vec<V>> for CArray<U> {
+impl<U: CReprOf<V>, V: 'static> CReprOf<Vec<V>> for CArray<U> {
     fn c_repr_of(input: Vec<V>) -> Result<Self, CReprOfError> {
         let input_size = input.len();
         let mut output: CArray<U> = CArray {
@@ -101,8 +99,7 @@ impl<U: CReprOf<V> + CDrop, V: 'static> CReprOf<Vec<V>> for CArray<U> {
                     input
                         .into_iter()
                         .map(U::c_repr_of)
-                        .collect::<Result<Vec<_>, CReprOfError>>()
-                        .expect("Could not convert to C representation")
+                        .collect::<Result<Vec<_>, CReprOfError>>()?
                         .into_boxed_slice(),
                 ) as *const U;
             }
@@ -113,25 +110,16 @@ impl<U: CReprOf<V> + CDrop, V: 'static> CReprOf<Vec<V>> for CArray<U> {
     }
 }
 
-impl<T> CDrop for CArray<T> {
-    fn do_drop(&mut self) -> Result<(), CDropError> {
-        if !self.data_ptr.is_null() {
-            // Null out the pointer before freeing so a second `do_drop` (e.g.
-            // from the `Drop` impl after a manual `do_drop`) is a no-op instead
-            // of a double free.
-            let data_ptr = std::mem::replace(&mut self.data_ptr, ptr::null());
-            let size = std::mem::replace(&mut self.size, 0);
-            let _ = unsafe {
-                Box::from_raw(std::ptr::slice_from_raw_parts_mut(data_ptr as *mut T, size))
-            };
-        }
-        Ok(())
-    }
-}
-
 impl<T> Drop for CArray<T> {
     fn drop(&mut self) {
-        let _ = self.do_drop();
+        if !self.data_ptr.is_null() {
+            let _ = unsafe {
+                Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                    self.data_ptr as *mut T,
+                    self.size,
+                ))
+            };
+        }
     }
 }
 

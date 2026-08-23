@@ -15,7 +15,9 @@ ffi-convert-extra-ctypes = { path ="../ffi-convert-extra-ctypes" }
 [features]
 asan = []
 msan = []
+compile-checks = []
 
 [dev-dependencies]
 cbindgen = "0.29"
 cc = "1"
+trybuild = "1"

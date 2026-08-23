@@ -1,9 +1,9 @@
 use std::ops::Range;
 
-use ffi_convert::{AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError};
+use ffi_convert::{AsRust, AsRustError, CReprOf, CReprOfError};
 
-/// A `#[repr(C)]` mirror of [`std::ops::Range<U>`] with impls of [`CReprOf`],
-/// [`CDrop`] and [`AsRust`].
+/// A `#[repr(C)]` mirror of [`std::ops::Range<U>`] with impls of [`CReprOf`]
+/// and [`AsRust`].
 ///
 /// Contains a plain `(start, end)` pair — no allocation involved. Use it as
 /// a field type when a struct needs to expose a range through FFI.
@@ -11,7 +11,7 @@ use ffi_convert::{AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError}
 /// # Example
 ///
 /// ```
-/// use ffi_convert::{CReprOf, AsRust, CDrop};
+/// use ffi_convert::{CReprOf, AsRust};
 /// use ffi_convert_extra_ctypes::CRange;
 /// use std::ops::Range;
 ///
@@ -20,7 +20,7 @@ use ffi_convert::{AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError}
 ///     pub range: Range<i32>
 /// }
 ///
-/// #[derive(AsRust, CDrop, CReprOf, Debug, PartialEq)]
+/// #[derive(AsRust, CReprOf, Debug, PartialEq)]
 /// #[target_type(Foo)]
 /// pub struct CFoo {
 ///     pub range: CRange<i32>
@@ -62,23 +62,11 @@ impl<U: AsRust<V>, V: PartialOrd + PartialEq> AsRust<Range<V>> for CRange<U> {
     }
 }
 
-impl<U: CReprOf<V> + CDrop, V: PartialOrd + PartialEq> CReprOf<Range<V>> for CRange<U> {
+impl<U: CReprOf<V>, V: PartialOrd + PartialEq> CReprOf<Range<V>> for CRange<U> {
     fn c_repr_of(input: Range<V>) -> Result<Self, CReprOfError> {
         Ok(Self {
             start: U::c_repr_of(input.start)?,
             end: U::c_repr_of(input.end)?,
         })
-    }
-}
-
-impl<T> CDrop for CRange<T> {
-    fn do_drop(&mut self) -> Result<(), CDropError> {
-        Ok(())
-    }
-}
-
-impl<T> Drop for CRange<T> {
-    fn drop(&mut self) {
-        let _ = self.do_drop();
     }
 }

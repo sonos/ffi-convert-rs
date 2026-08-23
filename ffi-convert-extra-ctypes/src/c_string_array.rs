@@ -1,16 +1,14 @@
 use std::ffi::{CStr, CString};
 
-use ffi_convert::{
-    AsRust, AsRustError, CDrop, CDropError, CReprOf, CReprOfError, RawBorrow, RawPointerConverter,
-};
+use ffi_convert::{AsRust, AsRustError, CReprOf, CReprOfError, RawBorrow, RawPointerConverter};
 
-/// A `#[repr(C)]` mirror of `Vec<String>` with impls of [`CReprOf`], [`CDrop`]
-/// and [`AsRust`].
+/// A `#[repr(C)]` mirror of `Vec<String>` with impls of [`CReprOf`] and
+/// [`AsRust`].
 ///
 /// Layout is a `(data, size)` pair where `data` is a pointer to a
 /// heap-allocated array of `*const c_char`, each pointing to its own
 /// nul-terminated C string allocated by the Rust side. The whole structure
-/// is freed via [`CDrop`](ffi_convert::CDrop) / [`Drop`].
+/// is freed via the [`Drop`] impl.
 ///
 /// Strings containing interior NUL bytes cannot be represented and will
 /// cause [`CReprOf::c_repr_of`](ffi_convert::CReprOf::c_repr_of) to fail
@@ -78,30 +76,18 @@ impl CReprOf<Vec<String>> for CStringArray {
     }
 }
 
-impl CDrop for CStringArray {
-    fn do_drop(&mut self) -> Result<(), CDropError> {
+impl Drop for CStringArray {
+    fn drop(&mut self) {
         if !self.data.is_null() {
-            // Null out the pointer before freeing so a second `do_drop` (e.g.
-            // from the `Drop` impl after a manual `do_drop`) is a no-op instead
-            // of a double free.
-            let data = std::mem::replace(&mut self.data, std::ptr::null());
-            let size = std::mem::replace(&mut self.size, 0);
             unsafe {
-                let y = Box::from_raw(std::ptr::slice_from_raw_parts_mut(
-                    data as *mut *mut std::ffi::c_char,
-                    size,
+                let strings = Box::from_raw(std::ptr::slice_from_raw_parts_mut(
+                    self.data as *mut *mut std::ffi::c_char,
+                    self.size,
                 ));
-                for p in y.iter() {
-                    let _ = CString::from_raw_pointer(*p)?; // let's not panic if we fail here
+                for p in strings.iter() {
+                    let _ = CString::from_raw_pointer(*p); // let's not panic if we fail here
                 }
             }
         }
-        Ok(())
-    }
-}
-
-impl Drop for CStringArray {
-    fn drop(&mut self) {
-        let _ = self.do_drop();
     }
 }
